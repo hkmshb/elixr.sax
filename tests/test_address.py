@@ -13,8 +13,8 @@ from elixr_db.address import Country, State, Address, AddressMixin, \
 # because of error which occured above, and since session object `db` has module 
 # scope, to ensure its usable in other tests, call below is necessary
 
-def dump(sql, *multiparams, **params):
-    print(sql)
+#def dump(sql, *multiparams, **params):
+#    print(sql)
 
 
 class MockAddress(Model, IdMixin, AddressMixin):

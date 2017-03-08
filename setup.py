@@ -16,6 +16,7 @@ requires = [
 ]
 
 tests_requires = [
+    'bcrypt',
     'pytest',
     'pytest-cov'
 ]
