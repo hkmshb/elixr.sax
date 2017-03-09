@@ -2,8 +2,8 @@ import pytest
 from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from elixr_db.meta import Model
-from elixr_db.auth import (
+from elixr.db.meta import Model
+from elixr.db.auth import (
     _hash_password,
     User, Role, AuthEmail, Authenticator
 )

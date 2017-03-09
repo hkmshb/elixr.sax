@@ -3,9 +3,9 @@ from collections import namedtuple
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
-from elixr_db.meta import Model
-from elixr_db.mixins import IdMixin
-from elixr_db.address import Country, State, Address, AddressMixin, \
+from elixr.db.meta import Model
+from elixr.db.mixins import IdMixin
+from elixr.db.address import Country, State, Address, AddressMixin, \
         CoordinatesMixin, Coordinates
 
 

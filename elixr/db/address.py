@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import Column, Float, ForeignKey, Integer, String, \
         UniqueConstraint
 from sqlalchemy.orm import relationship
-from elixr import AttrDict, Coordinates
+from elixr.core import AttrDict, Coordinates
 from .mixins import IdMixin
 from .meta import Model
 
