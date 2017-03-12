@@ -2,18 +2,10 @@
 import bcrypt
 from datetime import datetime
 from sqlalchemy.orm import exc as orm_exc
-from .models import User, Role, AuthEmail
-
-
-## FUNCS
-def _check_password(passwd, passwd_hash):
-    expected_hash = passwd_hash.encode('utf8')
-    return bcrypt.checkpw(passwd.encode('utf8'), expected_hash)
-
-
-def _hash_password(passwd):
-    pwhash = bcrypt.hashpw(passwd.encode('utf8'), bcrypt.gensalt())
-    return pwhash.decode('utf8')
+from .models import (
+    _check_password, _hash_password,
+    User, Role, AuthEmail
+)
 
 
 class Authenticator(object):

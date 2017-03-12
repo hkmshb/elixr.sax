@@ -1,6 +1,7 @@
 """Provides SQLAlchemy based model classes and utility functions which form the
 base on which to implement a simple role based security for an applicatin.
 """
+import bcrypt
 from sqlalchemy import (
     Column, Boolean, DateTime, ForeignKey, Integer,
     String, Table
@@ -17,6 +18,16 @@ from ..meta import Model
 ## FUNCS
 def generate_confirmation_hash():
     return utils.generate_random_digest(num_bytes=14)
+
+
+def _check_password(passwd, passwd_hash):
+    expected_hash = passwd_hash.encode('utf8')
+    return bcrypt.checkpw(passwd.encode('utf8'), expected_hash)
+
+
+def _hash_password(passwd):
+    pwhash = bcrypt.hashpw(passwd.encode('utf8'), bcrypt.gensalt())
+    return pwhash.decode('utf8')
 
 
 ## MODELS
@@ -82,6 +93,15 @@ class User(Model, IdMixin):
         email.is_preferred = True
         if not email in self.emails:
             self.emails.append(email)
+    
+    def check_password(self, raw_password):
+        if self.password != None:
+            return _check_password(raw_password, self.password)
+        return False
+
+    def set_password(self, raw_password):
+        if raw_password != None:
+            self.password = _hash_password(raw_password)
 
 
 class Role(Model, IdMixin):
@@ -89,7 +109,7 @@ class Role(Model, IdMixin):
     """
     __tablename__ = 'auth_roles'
 
-    name = Column(String(32), nullable=False, unique=True)
+    name = Column(String(30), nullable=False, unique=True)
     description = Column(String(256))
 
 
@@ -98,7 +118,7 @@ class AuthEmail(Model, IdMixin):
     """
     __tablename__ = 'auth_emails'
 
-    address = Column(String(255), nullable=False, unique=True)
+    address = Column(String(150), nullable=False, unique=True)
     user_id = Column(Integer, ForeignKey('auth_users.id'), nullable=False)
     confirmation_hash = Column(String(32), default=generate_confirmation_hash)
     is_confirmed = Column(Boolean(create_constraint=False), default=False)

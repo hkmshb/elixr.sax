@@ -2,8 +2,8 @@ import pytest
 from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from elixr.db.meta import Model
-from elixr.db.auth import (
+from elixr.sax.meta import Model
+from elixr.sax.auth import (
     _hash_password,
     User, Role, AuthEmail, Authenticator
 )
@@ -33,9 +33,9 @@ def db2():
     session = Session()
 
     ## populate
-    user = User(username='scott', is_active=True, 
-                password=_hash_password('tiger'))
+    user = User(username='scott', is_active=True)
     user.emails.append(AuthEmail(address='scott@tiger.ora'))
+    user.set_password('tiger')
 
     user2 = User(username='mike', password=_hash_password('lion'))
     user2.emails.append(AuthEmail(address='mike@lion.ora'))
@@ -142,6 +142,19 @@ class TestUser(TestBase):
         preferred_email = user.preferred_email
         assert preferred_email \
            and preferred_email.address == 'scott@tiger.ora'
+    
+    def test_password_can_be_changed(self, db):
+        self._clear_tables(db)
+        user = User(username='scott')
+        db.add(user)
+        db.commit()
+        assert user and user.id != None \
+           and user.password == None
+        
+        user.set_password('tiger')
+        db.commit()
+        assert user.password != None \
+           and user.password != 'tiger'
 
 
 class TestRole(TestBase):

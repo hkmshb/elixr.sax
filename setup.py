@@ -1,5 +1,5 @@
 import os
-import elixr.db
+import elixr.sax
 from setuptools import setup, find_packages
 
 
@@ -11,8 +11,10 @@ with open(os.path.join(here, 'CHANGES.md')) as f:
 
 
 requires = [
-    'elixr.core',
-    'sqlalchemy'
+    'sqlalchemy',
+    
+    # deps not on pypi
+    'elixr.core'
 ]
 
 tests_requires = [
@@ -22,16 +24,16 @@ tests_requires = [
 ]
 
 setup(
-    name='elixr.db',
-    version=elixr.db.__version__,
+    name='elixr.sax',
+    version=elixr.sax.__version__,
     description='Reusable types, models and utilities built around SQLAlchemy ORM',
     long_description=README + '\n\n' + CHANGES,
-    author=elixr.db.__author__,
+    author=elixr.sax.__author__,
     author_email='info@hazeltek.com',
     maintainer='Abdul-Hakeem Shaibu',
     maintainer_email='hkmshb@gmail.com',
     url='https://bitbucket.org/hkmshb/elixr',
-    keywords='elixr.db, elixr.db utils for sqlachemy',
+    keywords='elixr.sax, elixr SqlAlchemy eXtension',
     zip_safe=False,
     packages=find_packages(),
     platforms='any',

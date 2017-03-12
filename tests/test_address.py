@@ -3,11 +3,12 @@ from collections import namedtuple
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
-from elixr.db.meta import Model
-from elixr.db.mixins import IdMixin
-from elixr.db.address import Country, State, Address, AddressMixin, \
-        CoordinatesMixin, Coordinates
-
+from elixr.sax.meta import Model
+from elixr.sax.mixins import IdMixin
+from elixr.sax.address import (
+    Country, State, Address, AddressMixin,
+    CoordinatesMixin, Coordinates
+)
 
 # why? `db.rollback()`
 # because of error which occured above, and since session object `db` has module 

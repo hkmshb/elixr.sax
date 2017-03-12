@@ -3,8 +3,8 @@ from enum import Enum
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
-from elixr.db.meta import Model
-from elixr.db.types import Choice
+from elixr.sax.meta import Model
+from elixr.sax.types import Choice
 
 
 

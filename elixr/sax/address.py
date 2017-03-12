@@ -1,6 +1,5 @@
-"""Defines models which provide easy and extensible means of handling and
-incorporating address functionality for applications using SqlAlchemy for
-data access.
+"""Defines models which ease defining, storing and working with Addresses within
+an application.
 """
 from collections import namedtuple
 from sqlalchemy.ext.declarative import declared_attr
@@ -13,12 +12,11 @@ from .meta import Model
 
 
 
-class Country(Model):
+class Country(Model, IdMixin):
     """A model for storing Country data.
     """
     __tablename__ = 'countries'
 
-    id   = Column(Integer, primary_key=True)
     code = Column(String(3), nullable=False)
     name = Column(String(50), nullable=False, unique=True)
     states = relationship("State", back_populates="country")
@@ -27,7 +25,7 @@ class Country(Model):
         return self.name
 
 
-class State(Model):
+class State(Model, IdMixin):
     """A model for storing State data.
     """
     __tablename__ = 'states'
@@ -35,7 +33,6 @@ class State(Model):
         UniqueConstraint('name', 'country_id', name='uq_states_name_country_id'),
     )
 
-    id   = Column(Integer, primary_key=True)
     code = Column(String(3), nullable=False)
     name = Column(String(50), nullable=False)
     country_id = Column(Integer, ForeignKey("countries.id"), nullable=False)
@@ -125,6 +122,13 @@ class CoordinatesMixin(object):
             lat=self.latitude or 0.0,
             alt=self.altitude, 
             error=self.gps_error)
+
+
+class LocatableMixin(AddressMixin, CoordinatesMixin):
+    """A convenience mixin which combines the fields defined by both the 
+    AddressMixin and CoordinatesMixin.
+    """
+    pass
 
 
 class Address(Model, IdMixin, CoordinatesMixin):

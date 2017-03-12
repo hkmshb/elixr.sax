@@ -1,5 +1,6 @@
-"""A toolkit for data access and manipulation with definitions for resuable data
-models and other utility functions for data handling.
+"""SqlAlchemy eXtension: a toolkit of reusable SQLAlchemy types, data models and 
+utility functions encapsulating best practices or exposing convenient facades for
+data access and handling.
 
 Copyright (c) 2017, Hazeltek Solutions.
 """
