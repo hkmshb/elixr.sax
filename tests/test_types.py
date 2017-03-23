@@ -1,8 +1,7 @@
 import pytest
 from enum import Enum
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
+from elixr.sax import utils
 from elixr.sax.meta import Model
 from elixr.sax.types import Choice
 
@@ -23,15 +22,11 @@ class MockPerson(Model):
 @pytest.fixture(scope='module')
 def db():
     # setup
-    engine = create_engine('sqlite:///:memory:') #, echo=True)
-    Model.metadata.create_all(engine)
-
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
+    resx = utils.make_session()
+    yield resx.session
 
     # teardown
-    Model.metadata.drop_all(engine)
+    utils.drop_tables(resx.engine)
 
 
 class TestChoiceType(object):

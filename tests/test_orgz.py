@@ -1,9 +1,8 @@
 import pytest
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import exc
 from elixr.sax.meta import Model
+from elixr.sax import utils
 from elixr.sax.orgz import (
     Gender, MaritalStatus, ContactType, PartyType,
     EmailContact, PhoneContact, Party, Person, Organisation
@@ -13,22 +12,15 @@ from elixr.sax.orgz import (
 @pytest.fixture(scope='module')
 def db():
     ## setup
-    engine = create_engine('sqlite:///:memory:')
-    Model.metadata.create_all(engine)
-
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-
+    resx = utils.make_session()
+    return resx.session
     ## teardown
-    Model.metadata.drop_all(engine)
+    utils.drop_tables(resx.engine)
 
 
 class TestBase(object):
-    def _clear_tables(self, db):
-        for table in reversed(Model.metadata.sorted_tables):
-            db.execute(table.delete())
-        db.commit()
+    def _clear_tables(self, db, *table_names):
+        utils.clear_tables(db, *table_names)
 
 
 class TestContactDetail(TestBase):

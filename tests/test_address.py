@@ -1,8 +1,7 @@
 import pytest
 from collections import namedtuple
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
+from elixr.sax import utils
 from elixr.sax.meta import Model
 from elixr.sax.mixins import IdMixin
 from elixr.sax.address import (
@@ -30,21 +29,17 @@ class MockLocation(Model, IdMixin, CoordinatesMixin):
 
 @pytest.fixture(scope='module')
 def db():
-    # setup
-    engine = create_engine('sqlite:///:memory:') #, strategy='mock', executor=dump)
-    Model.metadata.create_all(engine)
+    def initdb(db):
+        db.add(Country(name='Nigeria', code='NG'))
+        db.add(Country(name='Algeria', code='AL'))
+        db.commit()
 
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    # create some records
-    session.add(Country(name='Nigeria', code='NG'))
-    session.add(Country(name='Algeria', code='AL'))
-    session.commit()
-    yield session
+    # setup & create records
+    resx = utils.make_session(initdb_callback=initdb)
+    yield resx.session
 
     # teardown
-    Model.metadata.drop_all(engine)
+    utils.drop_tables(resx.engine)
 
 
 class BaseTest(object):
