@@ -130,6 +130,10 @@ class Person(Party):
 
 class Organisation(Party, UUIDMixin, CoordinatesMixin):
     """A model for storing Organisation details.
+    
+    :hint: fncode (function code) can be used to indicate the organisation 
+    function implemented via an enum. e.g HQ, Branch, SalesOffice, ServicePoint
+    etc. Its left open to accomodate any int based enum declaration.
     """
     __tablename__ = 'organisations'
     __mapper_args__ = {
@@ -137,11 +141,12 @@ class Organisation(Party, UUIDMixin, CoordinatesMixin):
     }
 
     id = Column(Integer, ForeignKey("parties.id"), primary_key=True)
+    parent_id = Column(Integer, ForeignKey("organisations.id"))
+    fncode = Column(Integer)                                         # function code
     identifier = Column(String(30), nullable=False, unique=True)     # org identifier
     short_name = Column(String(15), unique=True)
     description = Column(String(255))
     date_established = Column(Date)
     website_url = Column(String(150))
-    parent_id = Column(Integer, ForeignKey("organisations.id"))
     children = relationship("Organisation", foreign_keys=[parent_id],
                 backref=backref("parent", remote_side=[id]))

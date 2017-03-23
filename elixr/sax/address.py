@@ -53,6 +53,7 @@ class AddressMixin(object):
     addr_raw    = Column(String(200))
     addr_street = Column(String(100))
     addr_town   = Column(String(50))
+    addr_landmark = Column(String(100))
     postal_code = Column(String(10))
     
     @declared_attr
@@ -74,6 +75,7 @@ class AddressMixin(object):
     @staticmethod
     def to_dict(addr):
         addr_dict = dict(
+            landmark = addr.addr_landmark,
             street = addr.addr_street,
             town = addr.addr_town,
             raw = addr.addr_raw,
@@ -102,6 +104,10 @@ class AddressMixin(object):
             if value:
                 value += ', '
             value += str(addr.addr_state)
+            if addr.addr_landmark:
+                if value:
+                    value += ' '
+                value += '(closest landmark: %s)' % addr.addr_landmark
         else:
             value = addr.addr_raw
         return value
@@ -139,24 +145,23 @@ class Address(Model, IdMixin, CoordinatesMixin):
     raw    = Column(String(200), nullable=False)
     street = Column(String(100))
     town   = Column(String(50))
+    landmark = Column(String(100))
+    postal_code = Column(String(10))
     state_id = Column(Integer, ForeignKey("states.id"), nullable=True)
     state    = relationship("State", backref="addresses")
-    postal_code = Column(String(10))
+
+    def as_attrd(self):
+        return AttrDict({
+            'addr_raw': self.raw,
+            'addr_street': self.street,
+            'addr_town': self.town,
+            'addr_state': self.state,
+            'addr_landmark': self.landmark,
+            'postal_code': self.postal_code,
+        })
 
     def as_dict(self):
-        return AddressMixin.to_dict(AttrDict({
-            'addr_raw': self.raw,
-            'addr_street': self.street,
-            'addr_town': self.town,
-            'addr_state': self.state,
-            'postal_code': self.postal_code
-        }))
+        return AddressMixin.to_dict(self.as_attrd())
     
     def __str__(self):
-        return AddressMixin.to_str(AttrDict({
-            'addr_raw': self.raw,
-            'addr_street': self.street,
-            'addr_town': self.town,
-            'addr_state': self.state,
-            'postal_code': self.postal_code
-        }))
+        return AddressMixin.to_str(self.as_attrd())

@@ -157,12 +157,14 @@ class TestAddress(BaseTest):
         return Address(
             raw='No 1 Bank Road, Bwari 720015, Abuja, Nigeria ::',
             street='No 1 Bank Road', town='Bwari', postal_code='720015',
-            state=self._state(db))
+            landmark='Bwari Post Office', state=self._state(db))
     
     def test_string_repr_with_all_fields(self, db):
         # hint: include '::' in raw to be sure raw is not used by str(addr)
         addr = self._address(db)
-        assert 'No 1 Bank Road, Bwari 720015, Abuja, Nigeria' == str(addr)
+        expected = ('No 1 Bank Road, Bwari 720015, Abuja, Nigeria '
+                 +  '(closest landmark: Bwari Post Office)')
+        assert expected == str(addr)
     
     def test_string_repr_with_only_raw_field(self):
         addr = Address(raw='1 Alu Avenue')
@@ -178,7 +180,7 @@ class TestAddress(BaseTest):
     def test_dict_repr(self, db):
         address = self._address(db)
         addr_dict = address.as_dict()
-        fields = ('raw', 'street', 'town', 'postal_code')
+        fields = ('raw', 'street', 'town', 'landmark', 'postal_code')
         for f in fields:
             assert getattr(address, f) == addr_dict.get(f)
         
@@ -196,16 +198,19 @@ class TestAddressMixinMock(BaseTest):
         return MockAddress(name='mock', 
                 addr_raw='No 1 Bank Road, Bwari 720015, Abuja, Nigeria ::',
                 addr_street='No 1 Bank Road', addr_town='Bwari', 
+                addr_landmark='Bwari Post Office',
                 postal_code='720015', addr_state=self._state(db))
     
     def test_address_str_from_address_mixin(self, db):
         mock = self._mock(db)
-        assert 'No 1 Bank Road, Bwari 720015, Abuja, Nigeria' == mock.address_str
+        expected = ('No 1 Bank Road, Bwari 720015, Abuja, Nigeria '
+                 +  '(closest landmark: Bwari Post Office)')
+        assert expected == mock.address_str
     
     def test_addres_dict_from_address_mixin(self, db):
         mock = self._mock(db)
         addr_dict = mock.address_dict
-        fields = ('addr_raw', 'addr_street', 'addr_town', 'postal_code')
+        fields = ('addr_raw', 'addr_street', 'addr_town', 'addr_landmark', 'postal_code')
         for f in fields:
             assert getattr(mock, f) == addr_dict.get(f.replace('addr_', ''))
     
@@ -218,7 +223,8 @@ class TestAddressMixinMock(BaseTest):
            and mock.addr_raw == None \
            and mock.addr_street == None \
            and mock.addr_town == None \
-           and mock.addr_state == None
+           and mock.addr_state == None \
+           and mock.addr_landmark == None
 
 
 class TestLocationMixinMock(BaseTest):
