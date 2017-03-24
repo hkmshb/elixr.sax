@@ -6,9 +6,9 @@ from sqlalchemy.orm import exc
 from elixr.core import AttrDict
 from elixr.sax import utils
 from elixr.sax.address import Country, State
-from elixr.sax.orgz import Gender
+from elixr.sax.orgz import Gender, EmailContact, PhoneContact, Organisation
 from elixr.sax.export.importer import (
-    XRefResolver, ImporterBase, AdminBoundaryImporter,
+    XRefResolver, ImporterBase, AdminBoundaryImporter, OrganisationImporter,
     ExactTextMatcher, PrefixedTextMatcher, SuffixedTextMatcher
 )
 
@@ -178,7 +178,7 @@ class TestImporterBase(object):
            and err_count == len(imp_vr.errors)
     
     @pytest.mark.parametrize("row, col, expected, err_count", [
-        (3, 1, None, 1), (3, 9, None, 1),    # cv:  , '2017-01-aa'
+        (3, 1, None, 0), (3, 9, None, 1),    # cv:  , '2017-01-aa'
         (3, 11, date(2017,1, 29), 0),        # cv: '2017-01-29'
         (3, 12, None, 1)                     # cv: '29-01-2017'
     ])
@@ -353,3 +353,30 @@ class TestAdminBoundaryImporter(object):
         assert found == 1
         found2 = db.query(State).count()
         assert found2 == 3
+
+
+class TestOrganisationImporter(object):
+    
+    def test_instantiation_fails_if_fncode_type_not_set(self, db):
+        with pytest.raises(AssertionError):
+            OrganisationImporter(AttrDict(db=db, cache=''))
+        
+    def test_organisations_import(self, cache):
+        from enum import Enum
+        class FnCode(Enum):
+            hq, branch = (1, 2)
+        
+        db = cache._XRefResolver__dbsession
+        OrganisationImporter.fncode_type = FnCode
+        utils.clear_tables(db, 'contact_details', 'organisations')
+        
+        context = AttrDict(db=db, cache=cache)
+        importer = OrganisationImporter(context)
+        importer.import_data(wb())
+        assert len(importer.errors) == 0
+        found = db.query(Organisation).count()
+        assert found == 2
+        found2 = db.query(EmailContact).count()
+        assert found2 == 2
+        found3 = db.query(PhoneContact).count()
+        assert found3 == 1

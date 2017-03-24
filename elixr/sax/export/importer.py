@@ -2,6 +2,7 @@ import sys
 from datetime import date, datetime
 from elixr.core import AttrDict
 from ..address import Country, State
+from ..orgz import PartyType, EmailContact, PhoneContact, Organisation
 
 
 # python version flag
@@ -17,7 +18,6 @@ ERROR_NOT_UNICODE_OR_ASCII = 'not unicode or ascii string'
 ERROR_NOT_ENUM_OF = lambda e: 'is bad integer/text for enum `%s`' % e.__name__
 
 no_data = object()
-no_date = object()
 no_enum = object()
 
 
@@ -178,12 +178,9 @@ class ImporterBase(object):
             return None
         return self.get_bool_from_cell(sheet, row, col)
     
-    def get_date_from_cell(self, sheet, row, col, default=no_date):
+    def get_date_from_cell(self, sheet, row, col, default=None):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found or value == '':
-            if default is no_date:
-                self.error(row, col, ERROR_NOT_DATE)
-                return None
             return default
         
         if isinstance(value, datetime):
@@ -224,7 +221,7 @@ class ImporterBase(object):
         if not found or value == '':
             self.error(row, col, ERROR_MISSING_REQUIRED_TEXT)
             return None
-        return self.get_enum_from_cell(sheet, row, col)
+        return self.get_enum_from_cell(sheet, row, col, enum_type)
 
     def get_float_found_valid(self, sheet, row, col, default=0.0):
         value, found = self.get_cell_and_found(sheet, row, col, default)
@@ -547,3 +544,115 @@ class AdminBoundaryImporter(ImporterBase):
             elif value == 'states':
                 row = self.import_state(sh, row)
         self.progress(row, nrows)
+
+
+class PartyImporterBase(ImporterBase):
+    """Base importer to pull excel data into a database for models derived
+    from the Party model.
+    """
+    subtype = None
+
+    def process_chunk(self, row, col, data):
+        sh = self.sheet
+        data['name'] = self.get_required_text_from_cell(sh, row, col)
+        data['addr_street'] = self.get_text_from_cell(sh, row, col+1)
+        data['addr_town'] = self.get_text_from_cell(sh, row, col+2)
+        data['addr_state_id'] = self.get_required_id_from_cell(sh, row, col+3)
+        data['addr_landmark'] = self.get_text_from_cell(sh, row, col+4)
+        data['postal_code'] = self.get_text_from_cell(sh, row, col+5)
+        return col+5
+    
+    def create_item(self, row, data):
+        raise NotImplementedError()
+    
+    def add_item(self, row, item):
+        raise NotImplementedError()
+    
+    def post_process(self):
+        pass
+    
+    def process(self):
+        sh, nrows = (self.sheet, self.sheet.max_row)
+        for row in range(2, nrows + 1):
+            data = AttrDict()
+            num_errors = len(self.errors)
+            self.process_chunk(row, 1, data)
+            if num_errors == len(self.errors):
+                item = self.create_item(row, data)
+                self.add_item(row, item)
+                self.progress(row, nrows)
+        self.post_process()
+        self.progress(row, nrows)
+
+
+class OrganisationImporter(PartyImporterBase):
+    """An importer to process and import Organisation data from an excel file.
+    """
+    IGNORE_REQ = '-x-'
+    sheet_name = 'organisations'
+    subtype = PartyType.organisation
+    fncode_type = None
+
+    def __init__(self, context, progress_callback=None):
+        super(OrganisationImporter, self).__init__(context, progress_callback)
+        self.__root = context.db.query(Organisation).first()
+        assert self.fncode_type != None
+    
+    def add_item(self, row, item):
+        if not item: return
+        # be sure only single root exists
+        if not item.parent and not item.parent_id:
+            if self.__root:
+                message = 'Root organisation already exists.'
+                self.error(row, 0, message)
+                return
+            else:
+                self.__root = item
+        
+        # all is good at this point
+        self.context.db.add(item)
+    
+    def create_item(self, row, data):
+        # extract contact fields
+        contacts = []
+        for email in (data.pop('emails') or []):
+            contacts.append(EmailContact(address=email))
+        for number in (data.pop('phones') or []):
+            contacts.append(PhoneContact(number=number))
+        
+        self.resolve_xref(data, 
+            ('addr_state_id', 'code', State),
+            ('parent_id', 'short_name', Organisation))
+        data.fncode = data.fncode.value     # norm into int
+        try:
+            item = Organisation(**data)
+            if contacts:
+                item.contacts.extend(contacts)
+            return item
+        except Exception as ex:
+            message_fmt = 'Organisation could not be created. Err: %s'
+            self.error(row, 0, message_fmt % str(ex))
+        return None
+    
+    def post_process(self):
+        pass
+
+    def process_chunk(self, row, col, data):
+        sh, ftype = (self.sheet, self.fncode_type)
+        data['parent_id'] = self.get_required_id_from_cell(sh, row, col)
+        data['identifier'] = self.get_required_id_from_cell(sh, row, col+1)
+        data['fncode'] = self.get_required_enum_from_cell(sh, row, col+2, ftype)
+        data['short_name'] = self.get_text_from_cell(sh, row, col+3)
+        ## break-out to capture party chunk
+        col = super(OrganisationImporter, self).process_chunk(row, col+4, data)
+        ## return to normal flow
+        data['website_url'] = self.get_text_from_cell(sh, row, col+1)
+        data['emails'] = self.get_ids_from_cell(sh, row, col+2)
+        data['phones'] = self.get_ids_from_cell(sh, row, col+3)
+        data['date_established'] = self.get_date_from_cell(sh, row, col+4)
+        data['description'] = self.get_text_from_cell(sh, row, col+5)
+        data['longitude'] = self.get_float_from_cell(sh, row, col+6)
+        data['latitude'] = self.get_float_from_cell(sh, row, col+7)
+        data['altitude'] = self.get_float_from_cell(sh, row, col+8)
+        data['gps_error'] = self.get_float_from_cell(sh, row, col+9)
+        return col+12
