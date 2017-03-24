@@ -19,6 +19,7 @@ requires = [
 
 tests_requires = [
     'bcrypt',
+    'openpyxl',
     'pytest',
     'pytest-cov'
 ]
