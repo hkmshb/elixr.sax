@@ -70,16 +70,46 @@ class ValueReader(ImporterBase):
 class TestXRefResolver(object):
 
     @pytest.mark.parametrize("model_type, filters, expected", [
+        (State, {'code':'AB'}, 'state_id#'),
+        (Country, {'code':'NG'}, 'country_id#'),
+        (State, {'code':'AB', 'country':'NG'}, 'state_id#')])
+    def test_genkey_startswith_MODELNAME_ID_if_retrieving_only_id(self, 
+            model_type, filters, expected):
+        key = XRefResolver.generate_key(model_type, only_id=True, **filters)
+        assert key.startswith(expected) == True
+    
+    @pytest.mark.parametrize("model_type, filters, expected", [
+        (State, {'code':'AB'}, 'state#'),
+        (Country, {'code':'NG'}, 'country#'),
+        (State, {'code':'AB', 'country':'NG'}, 'state#')])
+    def test_genkey_startswith_MODELNAME_if_retrieving_entire_model(self,
+            model_type, filters, expected):
+        key = XRefResolver.generate_key(model_type, only_id=False, **filters)
+        assert key.startswith(expected) == True
+    
+    @pytest.mark.parametrize("model_type, filters, expected", [
+        (State, {'code':'AB'}, 'state_id#code=ab'),
+        (Country, {'code':'NG'}, 'country_id#code=ng'),
+        (State, {'code':'AB', 'country':'NG'}, 'state_id#code=ab#country=ng')])
+    def test_genkey_contacts_key_value_pairs_of_filter(self, 
+            model_type, filters, expected):
+        key = XRefResolver.generate_key(model_type, only_id=True, **filters)
+        assert expected == key
+
+    @pytest.mark.parametrize("model_type, filters, expected", [
         (State, {'code':'AB'}, 'state#code=ab'),
         (Country, {'code':'NG'}, 'country#code=ng'),
         (State, {'code':'AB', 'country':'NG'}, 'state#code=ab#country=ng')])
-    def test_get_cache_key(self, model_type, filters, expected):
-        key = XRefResolver.get_cache_key(model_type, **filters)
+    def test_genkey_contacts_key_value_pairs_of_filter2(self,
+            model_type, filters, expected):
+        key = XRefResolver.generate_key(model_type, only_id=False, **filters)
         assert expected == key
 
     def test_ok_when_filter_matches_single_record(self, cache):
         id = cache.resolve(Country, code='NG')
-        assert id != None and id > 0
+        assert id != None and id > 0 \
+           and ('int' in str(type(id)) \
+            or  'long' in str(type(id)))
     
     def test_fails_when_filter_matches_multiple_records(self, cache):
         with pytest.raises(exc.MultipleResultsFound):
@@ -87,21 +117,53 @@ class TestXRefResolver(object):
     
     def test_results_are_also_stored_in_internal_cache(self, cache):
         cache.clear_cache()
-        id = cache.resolve(Country, code='NG')
-        key = cache.get_cache_key(Country, code='NG')
-        assert id != None \
+        id = cache.resolve(Country, only_id=True, code='NG')
+        key = cache.generate_key(Country, only_id=True, code='NG')
+        assert id != None and id > 0 \
            and id == cache._XRefResolver__cache[key]
     
     def test_cache_result_used_if_already_exists(self, cache):
         # mock an existing entry
-        key = cache.get_cache_key(Country, code='NZ')
+        key = cache.generate_key(Country, only_id=True, code='NZ')
         cache._XRefResolver__cache[key] = 'oops!'
-        id = cache.resolve(Country, code='NZ')
+        id = cache.resolve(Country, only_id=True, code='NZ')
         assert id == 'oops!'
+    
+    def test_returns_object_when_only_id_FALSE(self, cache):
+        cache.clear_cache()
+        country = cache.resolve(Country, only_id=False, code='NG')
+        assert country is not None \
+           and country.id != 0 \
+           and isinstance(country, Country)
+    
+    def test_returns_id_when_only_id_TRUE(self, cache):
+        cache.clear_cache()
+        country_id = cache.resolve(Country, only_id=True, code='NG')
+        assert country_id and country_id > 0 \
+           and ('int' in str(type(country_id))
+            or  'long' in str(type(country_id)))
 
 
 class TestImporterBase(object):
 
+    def test_resolve_xref_gets_id_for_xref_field_ending_with_id(self, cache):
+        cache.clear_cache()
+        data = {'country_id': 'NG'}
+        session = cache._XRefResolver__dbsession
+        imp = ValueReader(AttrDict(wb=None, db=session, cache=cache))
+        imp.resolve_xref(data, ('country_id', 'code', Country))
+        type_str = str(type(data['country_id']))
+        assert 'int' in type_str \
+            or 'long' in type_str
+
+    def test_resolve_xref_gets_model_for_xref_field_ending_witout_id(self, cache):
+        cache.clear_cache()
+        data = {'country': 'NG'}
+        session = cache._XRefResolver__dbsession
+        imp = ValueReader(AttrDict(wb=None, db=session, cache=cache))
+        imp.resolve_xref(data, ('country', 'code', Country))
+        assert isinstance(data['country'], Country)
+        
     @pytest.mark.parametrize("row, expected", [
         (1, True), (2, False), (3, False), (4, True)])
     def test_is_empty_row(self, imp_vr, row, expected):
@@ -117,7 +179,7 @@ class TestImporterBase(object):
         imp_vr.errors = [] # .clear() fails for py2
         value = imp_vr.get_cell_value(imp_vr.sheet, row, col)
         assert len(imp_vr.errors) == 0
-        assert expected == value \
+        assert expected == value
         ## and type(expected) in type(value)
         # commented out as type(expected) resulted in long for py2 and int
         # for py3 for same numeric value...

@@ -78,11 +78,13 @@ class XRefResolver(object):
         self.__dbsession = dbsession
         self.__cache = {}
     
-    def resolve(self, model_type, **filters):
-        key = self.get_cache_key(model_type, **filters)
+    def resolve(self, model_type, only_id=True, **filters):
+        key = self.generate_key(model_type, only_id=only_id, **filters)
         if key not in self.__cache:
-            query = self.__dbsession.query(model_type.id).filter_by(**filters)
-            value = query.scalar()
+            fnquery = self.__dbsession.query
+            query = fnquery(model_type.id if only_id else model_type) \
+                        .filter_by(**filters)
+            value = query.scalar() if only_id else query.one()
             if value:
                 self.__cache[key] = value
         return self.__cache.get(key)
@@ -93,9 +95,12 @@ class XRefResolver(object):
         self.__cache.clear()
     
     @staticmethod
-    def get_cache_key(model_type, **filters):
+    def generate_key(model_type, only_id, **filters):
+        prefix = model_type.__name__
+        if only_id:
+            prefix += '_id'
         pairs = ['%s=%s' % (k, filters[k]) for k in sorted(filters)]
-        return ('#'.join([model_type.__name__] + pairs)).lower()
+        return ('#'.join([prefix] + pairs)).lower()
 
 
 class ImporterBase(object):
@@ -124,11 +129,16 @@ class ImporterBase(object):
         for xref_field, filter_field, model_type in xref_mapping:
             if xref_field not in data:
                 continue
+            only_id = xref_field.endswith('_id')
             xref_value = data.pop(xref_field)
             if not isinstance(xref_value, (list, tuple)):
-                data[xref_field] = resolve(model_type, **{filter_field: xref_value})
+                kw = {filter_field: xref_value}
+                data[xref_field] = resolve(model_type, only_id, **kw)
             else:
-                ids = [resolve(model_type, **{filter_field: v}) for v in xref_value]
+                ids = []
+                for value in xref_value:
+                    kw = {filter_field: value}
+                    ids.append(resolve(model_type, only_id, **kw))
                 data[xref_field] = [id for id in ids if id]
         
     def progress(self, *args):
@@ -555,11 +565,11 @@ class PartyImporterBase(ImporterBase):
     def process_chunk(self, row, col, data):
         sh = self.sheet
         data['name'] = self.get_required_text_from_cell(sh, row, col)
-        data['addr_street'] = self.get_text_from_cell(sh, row, col+1)
-        data['addr_town'] = self.get_text_from_cell(sh, row, col+2)
+        data['addr_street'] = self.get_text_from_cell(sh, row, col+1, None)
+        data['addr_town'] = self.get_text_from_cell(sh, row, col+2, None)
         data['addr_state_id'] = self.get_required_id_from_cell(sh, row, col+3)
-        data['addr_landmark'] = self.get_text_from_cell(sh, row, col+4)
-        data['postal_code'] = self.get_text_from_cell(sh, row, col+5)
+        data['addr_landmark'] = self.get_text_from_cell(sh, row, col+4, None)
+        data['postal_code'] = self.get_text_from_cell(sh, row, col+5, None)
         return col+5
     
     def create_item(self, row, data):
@@ -636,23 +646,23 @@ class OrganisationImporter(PartyImporterBase):
     
     def post_process(self):
         pass
-
+        
     def process_chunk(self, row, col, data):
         sh, ftype = (self.sheet, self.fncode_type)
         data['parent_id'] = self.get_required_id_from_cell(sh, row, col)
         data['identifier'] = self.get_required_id_from_cell(sh, row, col+1)
         data['fncode'] = self.get_required_enum_from_cell(sh, row, col+2, ftype)
-        data['short_name'] = self.get_text_from_cell(sh, row, col+3)
+        data['short_name'] = self.get_text_from_cell(sh, row, col+3, None)
         ## break-out to capture party chunk
         col = super(OrganisationImporter, self).process_chunk(row, col+4, data)
         ## return to normal flow
-        data['website_url'] = self.get_text_from_cell(sh, row, col+1)
+        data['website_url'] = self.get_text_from_cell(sh, row, col+1, None)
         data['emails'] = self.get_ids_from_cell(sh, row, col+2)
         data['phones'] = self.get_ids_from_cell(sh, row, col+3)
         data['date_established'] = self.get_date_from_cell(sh, row, col+4)
-        data['description'] = self.get_text_from_cell(sh, row, col+5)
-        data['longitude'] = self.get_float_from_cell(sh, row, col+6)
-        data['latitude'] = self.get_float_from_cell(sh, row, col+7)
-        data['altitude'] = self.get_float_from_cell(sh, row, col+8)
-        data['gps_error'] = self.get_float_from_cell(sh, row, col+9)
+        data['description'] = self.get_text_from_cell(sh, row, col+5, None)
+        data['longitude'] = self.get_float_from_cell(sh, row, col+6, None)
+        data['latitude'] = self.get_float_from_cell(sh, row, col+7, None)
+        data['altitude'] = self.get_float_from_cell(sh, row, col+8, None)
+        data['gps_error'] = self.get_float_from_cell(sh, row, col+9, None)
         return col+12
