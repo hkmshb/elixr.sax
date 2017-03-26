@@ -6,7 +6,7 @@ Copyright (c) 2017, Hazeltek Solutions.
 """
 
 __author__  = 'Hazeltek Solutions'
-__version__ = '0.0'
+__version__ = '0.3'
 
 
 
