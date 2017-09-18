@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from elixr import utils
+from elixr.base import generate_random_digest
 
 from ..mixins import IdMixin
 from ..meta import Model
@@ -17,7 +17,7 @@ from ..meta import Model
 
 ## FUNCS
 def generate_confirmation_hash():
-    return utils.generate_random_digest(num_bytes=14)
+    return generate_random_digest(num_bytes=14)
 
 
 def _check_password(passwd, passwd_hash):

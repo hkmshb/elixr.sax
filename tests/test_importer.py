@@ -3,7 +3,7 @@ import pytest
 import openpyxl
 from datetime import date
 from sqlalchemy.orm import exc
-from elixr.core import AttrDict
+from elixr.base import AttrDict
 from elixr.sax import utils
 from elixr.sax.address import Country, State
 from elixr.sax.orgz import Gender, EmailContact, PhoneContact, Organisation

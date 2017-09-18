@@ -1,7 +1,8 @@
 import os
-import elixr.sax
 from setuptools import setup, find_packages
 
+
+VERSION = "0.3.2"
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md')) as f:
@@ -12,9 +13,9 @@ with open(os.path.join(here, 'CHANGES.md')) as f:
 
 requires = [
     'sqlalchemy',
-    
+
     # deps not on pypi
-    'elixr.core'
+    'elixr.base'
 ]
 
 tests_requires = [
@@ -26,10 +27,10 @@ tests_requires = [
 
 setup(
     name='elixr.sax',
-    version=elixr.sax.__version__,
+    version=VERSION,
     description='Reusable types, models and utilities built around SQLAlchemy ORM',
     long_description=README + '\n\n' + CHANGES,
-    author=elixr.sax.__author__,
+    author="Hazeltek Solutions",
     author_email='info@hazeltek.com',
     maintainer='Abdul-Hakeem Shaibu',
     maintainer_email='hkmshb@gmail.com',

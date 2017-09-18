@@ -1,6 +1,6 @@
 import sys
 from datetime import date, datetime
-from elixr.core import AttrDict
+from elixr.base import AttrDict
 from ..address import Country, State
 from ..orgz import PartyType, EmailContact, PhoneContact, Organisation
 
