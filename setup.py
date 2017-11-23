@@ -1,3 +1,5 @@
+# note: when installing via pip include flag `--process-dependency-links`
+
 import os
 from setuptools import setup, find_packages
 
@@ -16,9 +18,7 @@ with open(os.path.join(here, 'CHANGES.md')) as f:
 
 requires = [
     'sqlalchemy',
-
-    # deps not on pypi
-    'elixr.base'
+    'elixr.base==0.3.1'
 ]
 
 tests_requires = [
@@ -43,7 +43,10 @@ setup(
     packages=find_packages(),
     platforms='any',
     install_requires=requires,
-    extras_require={ 'testing': tests_requires },
+    extras_require={'testing': tests_requires},
+    dependency_links=[
+        'https://bitbucket.org/hkmshb/elixr.base/get/v0.3.1.tar.gz#egg=elixr.base-0.3.1',
+    ],
     classifiers=[
         'Development Status :: *',
         'Intended Audience :: Developers',
