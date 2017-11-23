@@ -1,7 +1,7 @@
 import uuid
 from enum import Enum
 from sqlalchemy.types import TypeDecorator, CHAR, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as UUId
 
 
 
@@ -16,7 +16,7 @@ class UUID(TypeDecorator):
 
     def load_dialect_impl(self, dialect):
         if dialect.name == 'postgresql':
-            return dialect.type_descriptor(UUID())
+            return dialect.type_descriptor(UUId())
         else:
             return dialect.type_descriptor(CHAR(32))
     

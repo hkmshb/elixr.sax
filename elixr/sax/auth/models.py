@@ -63,19 +63,19 @@ class User(Model, IdMixin):
             if role.name == 'admin':
                 return True
         return False
-    
+
     @property
     def confirmed_emails(self):
         """Returns a list of confirmed emails.
         """
         return [e for e in self.emails if e.is_confirmed]
-    
+
     @property
     def has_confirmed_emails(self):
         """Indicates whether the user has got any confirmed emails.
         """
         return bool(self.confirmed_emails)
-    
+
     @property
     def preferred_email(self):
         if self.emails:
@@ -84,7 +84,7 @@ class User(Model, IdMixin):
                 return preferred[0]
             return self.emails[0]
         return None
-    
+
     @preferred_email.setter
     def set_preferred_email(self, email):
         for em in self.emails:
@@ -93,7 +93,7 @@ class User(Model, IdMixin):
         email.is_preferred = True
         if not email in self.emails:
             self.emails.append(email)
-    
+
     def check_password(self, raw_password):
         if self.password != None:
             return _check_password(raw_password, self.password)

@@ -1,4 +1,3 @@
-# package: elixr_db.auth
 import bcrypt
 from datetime import datetime
 from sqlalchemy.orm import exc as orm_exc
@@ -17,10 +16,10 @@ class Authenticator(object):
     def __init__(self, db_session, accept_email_as_username=False):
         if not db_session:
             raise ValueError('db_session is required.')
-        
+
         self._db_session = db_session
         self._accept_email_as_username = accept_email_as_username
-    
+
     def authenticate(self, username, password):
         db = self._db_session
         if self._accept_email_as_username and '@' in username:
@@ -33,7 +32,7 @@ class Authenticator(object):
             except orm_exc.NoResultFound:
                 pass
             return None
-        
+
         # if code gets this far it could be `accept_email_as_username=False` or
         # treatment of username as email failed thus need to treat username as 
         # just a username
@@ -41,9 +40,8 @@ class Authenticator(object):
         if user and _check_password(password, user.password):
             return user
         return None
-    
+
     def __call__(self, username, password):
         """Convenience method for calling `authenticate`.
         """
         return self.authenticate(username, password)
-    

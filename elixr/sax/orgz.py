@@ -99,6 +99,7 @@ class Party(Model, IdTimestampMixin, AddressMixin):
         'polymorphic_on': subtype
     }
 
+
 class Person(Party):
     """A model for storing Person details.
     """

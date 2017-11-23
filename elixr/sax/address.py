@@ -162,6 +162,6 @@ class Address(Model, IdMixin, CoordinatesMixin):
 
     def as_dict(self):
         return AddressMixin.to_dict(self.as_attrd())
-    
+
     def __str__(self):
         return AddressMixin.to_str(self.as_attrd())
