@@ -10,8 +10,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from elixr.base import generate_random_digest
 
-from ..mixins import IdMixin
-from ..meta import Model
+from ..mixins import IdsMixin
+from .. import meta, types
 
 
 
@@ -32,26 +32,25 @@ def _hash_password(passwd):
 
 ## MODELS
 # many-to-many relation between users and roles
-auth_users_roles = Table(
-    'auth_users_roles',
-    Model.metadata,
-    Column('user_id', Integer, ForeignKey('auth_users.id')),
-    Column('role_id', Integer, ForeignKey('auth_roles.id'))
+auth_users_roles_table = Table(
+    'auth_users_roles', meta.metadata,
+    Column('user_id', types.UUID, ForeignKey('auth_users.uuid')),
+    Column('role_id', types.UUID, ForeignKey('auth_roles.uuid'))
 )
 
 
-class User(Model, IdMixin):
+class User(meta.Model, IdsMixin):
     """A model for storing User data.
     """
     __tablename__ = 'auth_users'
-    
-    username   = Column(String(32), nullable=False, unique=True)
+
+    username = Column(String(32), nullable=False, unique=True)
     first_name = Column(String(30))
-    last_name  = Column(String(30))
-    password   = Column(String(150))
-    is_active  = Column(Boolean(create_constraint=False), nullable=False, default=False)
+    last_name = Column(String(30))
+    password = Column(String(150))
+    is_active = Column(Boolean(create_constraint=False), nullable=False, default=False)
     date_joined = Column(DateTime, nullable=False, default=func.now())
-    last_login  = Column(DateTime, nullable=True)
+    last_login = Column(DateTime, nullable=True)
     roles = relationship("Role", secondary="auth_users_roles", lazy="joined")
     emails = relationship("AuthEmail", lazy="joined", back_populates="user")
 
@@ -104,7 +103,7 @@ class User(Model, IdMixin):
             self.password = _hash_password(raw_password)
 
 
-class Role(Model, IdMixin):
+class Role(meta.Model, IdsMixin):
     """A model for storing Role data.
     """
     __tablename__ = 'auth_roles'
@@ -113,13 +112,13 @@ class Role(Model, IdMixin):
     description = Column(String(256))
 
 
-class AuthEmail(Model, IdMixin):
+class AuthEmail(meta.Model, IdsMixin):
     """A model for storing Email addresses associated to a User model.
     """
     __tablename__ = 'auth_emails'
 
     address = Column(String(150), nullable=False, unique=True)
-    user_id = Column(Integer, ForeignKey('auth_users.id'), nullable=False)
+    user_id = Column(types.UUID, ForeignKey('auth_users.uuid'), nullable=False)
     confirmation_hash = Column(String(32), default=generate_confirmation_hash)
     is_confirmed = Column(Boolean(create_constraint=False), default=False)
     is_preferred = Column(Boolean(create_constraint=False), default=False)

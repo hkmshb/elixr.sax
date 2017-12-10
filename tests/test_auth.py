@@ -51,7 +51,7 @@ class TestUser(TestBase):
         db.add(user)
         db.commit()
         assert user.id != None and user.id > 0
-    
+
     def test_commit_fails_for_non_unique_username(self, db):
         self._clear_tables(db)
         db.add(User(username='scott'))
@@ -60,14 +60,14 @@ class TestUser(TestBase):
             db.add(User(username='scott'))
             db.commit()
         db.rollback()
-        
+
     def test_created_inactive_by_default(self, db):
         self._clear_tables(db)
         user = User(username='scott')
         db.add(user)
         db.commit()
         assert user.id != None and user.is_active == False
-    
+
     def test_date_join_set_on_creation(self, db):
         self._clear_tables(db)
         user = User(username='scott')
@@ -86,7 +86,7 @@ class TestUser(TestBase):
         assert user.id != None \
            and len(user.roles) == 1 \
            and user.roles[0].id != None
-    
+
     def test_added_auth_email_gets_saved(self, db):
         self._clear_tables(db)
         user = User(username='scott')
@@ -96,7 +96,7 @@ class TestUser(TestBase):
         assert user.id != None \
            and len(user.emails) == 1 \
            and user.emails[0].id != None
-    
+
     @pytest.mark.parametrize("roles, result", [
         ([Role(name='member')], False),
         ([Role(name='member'), Role(name='admin')], True)])
@@ -105,20 +105,20 @@ class TestUser(TestBase):
         user = User(username='scott')
         user.roles.extend(roles)
         assert user.is_admin == result
-    
+
     def test_can_get_confirmed_email_if_exists(self, db):
         self._clear_tables(db)
         user = User(username='scott', password=_hash_password('tiger'))
         user.emails.extend([
             AuthEmail(address='scott@tiger.ora', is_confirmed=True),
-            AuthEmail(address='scott@lion.ora') 
+            AuthEmail(address='scott@lion.ora')
         ])
         db.add(user)
         db.commit()
         confirmed_emails = user.confirmed_emails
         assert confirmed_emails and len(confirmed_emails) == 1 \
            and confirmed_emails[0].address == 'scott@tiger.ora'
-    
+
     def test_can_get_preferred_email_if_exists(self, db):
         self._clear_tables(db)
         user = User(username='scott')
@@ -131,7 +131,7 @@ class TestUser(TestBase):
         preferred_email = user.preferred_email
         assert preferred_email \
            and preferred_email.address == 'scott@tiger.ora'
-    
+
     def test_password_can_be_changed(self, db):
         self._clear_tables(db)
         user = User(username='scott')
@@ -139,7 +139,7 @@ class TestUser(TestBase):
         db.commit()
         assert user and user.id != None \
            and user.password == None
-        
+
         user.set_password('tiger')
         db.commit()
         assert user.password != None \
@@ -153,7 +153,7 @@ class TestRole(TestBase):
         db.add(role)
         db.commit()
         assert role.id != None and role.id > 0
-    
+
     def test_commit_fails_for_non_unique_name(self, db):
         self._clear_tables(db)
         db.add(Role(name='member'))
@@ -174,8 +174,8 @@ class TestAuthEmail(TestBase):
         db.commit()
         assert user.id != None \
            and email.id != None \
-           and email.user_id == user.id
-    
+           and email.user_id == user.uuid
+
     def test_address_and_user_id_required_for_direct_creation(self, db):
         self._clear_tables(db)
         user = User(username='scott')
@@ -186,7 +186,7 @@ class TestAuthEmail(TestBase):
         db.add(email)
         db.commit()
         assert email.id != None \
-           and email.user_id == user.id
+           and email.user_id == user.uuid
 
 
 class TestAuthenticator(TestBase):
@@ -197,19 +197,19 @@ class TestAuthenticator(TestBase):
 
         user = Authenticator(db2).authenticate('allen', 'skit')
         assert user == None
-    
+
     def test_authn_fails_for_wrong_password(self, db2):
         user = Authenticator(db2).authenticate('scott', 'lion')
         assert user == None
-    
+
     def test_authn_fails_for_wrong_username(self, db2):
         user = Authenticator(db2).authenticate('mike', 'tiger')
         assert user == None
-    
+
     def test_authn_passes_for_valid_credentials(self, db2):
         user = Authenticator(db2).authenticate('scott', 'tiger')
         assert user != None and user.id != None
-    
+
     def test_authn_fails_for_valid_creds_bcos_user_inactive(self, db2):
         user = Authenticator(db2).authenticate('mike', 'lion')
         assert user == None
@@ -218,12 +218,12 @@ class TestAuthenticator(TestBase):
         authr = Authenticator(db2, accept_email_as_username=True)
         user = authr.authenticate('scott@tiger.ora', 'tiger')
         assert user != None and user.id != None
-    
+
     def test_authn_fails_for_valid_creds_using_email_bcos_user_inactive(self, db2):
         authr = Authenticator(db2, accept_email_as_username=True)
         user = authr.authenticate('mike@lion.ora', 'lion')
         assert user == None
-    
+
     def test_can_authn_conveniently_with_valid_creds(seld, db2):
         authn = Authenticator(db2)
         user = authn('scott', 'tiger')
