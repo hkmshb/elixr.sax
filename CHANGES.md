@@ -1,7 +1,7 @@
-0.0
----
--  Initial version.
+# Changes
 
-0.3
----
--  Production release.
+## 0.3
+- Production release.
+
+## 0.0
+- Initial version.

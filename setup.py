@@ -18,7 +18,7 @@ with open(os.path.join(here, 'CHANGES.md')) as f:
 
 requires = [
     'sqlalchemy',
-    'elixr.base==0.3.1'
+    'elixr.base==0.4'
 ]
 
 tests_requires = [
@@ -37,15 +37,17 @@ setup(
     author_email='info@hazeltek.com',
     maintainer='Abdul-Hakeem Shaibu',
     maintainer_email='hkmshb@gmail.com',
-    url='https://bitbucket.org/hkmshb/elixr.sax',
+    url='https://bitbucket.org/hazeltek-dev/elixr.sax',
     keywords='elixr.sax, elixr SqlAlchemy eXtension',
     zip_safe=False,
     packages=find_packages(),
     platforms='any',
     install_requires=requires,
-    extras_require={'testing': tests_requires},
+    extras_require={
+        'test': tests_requires
+    },
     dependency_links=[
-        'https://bitbucket.org/hkmshb/elixr.base/get/v0.3.1.tar.gz#egg=elixr.base-0.3.1',
+        'https://bitbucket.org/hazeltek-dev/elixr.base/get/v0.4.tar.gz#egg=elixr.base-0.4',
     ],
     classifiers=[
         'Development Status :: *',
