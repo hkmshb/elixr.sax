@@ -19,7 +19,7 @@ class UUID(TypeDecorator):
             return dialect.type_descriptor(UUId())
         else:
             return dialect.type_descriptor(CHAR(32))
-    
+
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
@@ -31,7 +31,7 @@ class UUID(TypeDecorator):
             else:
                 # hexstring
                 return "%.32x" % value.int
-    
+
     def process_result_value(self, value, dialect):
         if value is None:
             return value
@@ -39,23 +39,23 @@ class UUID(TypeDecorator):
 
 
 class Choice(TypeDecorator):
-    """Choice offers way of having fixed set of choices for given column. It 
+    """Choice offers way of having fixed set of choices for given column. It
     works with :mod:`enum` in the standard library of Python 3.4+ (the enum34_
     backported package on PyPi is compatible too for ``< 3.4``).
 
     # hint: adapted from sqlalchemy_utils ChoiceType.
     """
     impl = Integer
-    
+
     def __init__(self, enum_class, *args, **kwargs):
         super(Choice, self).__init__(*args, **kwargs)
         self.enum_class = enum_class
-    
+
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
         return self.enum_class(value).value
-    
+
     def process_result_value(self, value, dialect):
         if value is None:
             return value

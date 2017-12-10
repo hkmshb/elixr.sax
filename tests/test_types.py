@@ -8,14 +8,14 @@ from elixr.sax.types import Choice
 
 
 class Gender(Enum):
-    male   = 1
+    male = 1
     female = 2
 
 
 class MockPerson(Model):
     __tablename__ = 'mock_persons'
-    id     = Column(Integer, primary_key=True)
-    name   = Column(String(50), nullable=False)
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)
     gender = Column(Choice(Gender), nullable=False)
 
 
@@ -37,7 +37,7 @@ class TestChoiceType(object):
         db.commit()
 
         assert person.id != None
-    
+
     def test_gender_stored_as_integer(self, db):
         # this save succeeds ...
         db.add(MockPerson(name='jane', gender=Gender.female))
@@ -46,7 +46,7 @@ class TestChoiceType(object):
 
         # perform assertion
         self._assert_gender_column_stores_integer(db)
-        
+
     def _assert_gender_column_stores_integer(self, db):
         # perform direct dbapi access of `mock_persons` table
         conn = db.connection()
