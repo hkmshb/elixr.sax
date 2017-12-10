@@ -58,7 +58,7 @@ class AddressMixin(object):
 
     @declared_attr
     def addr_state_id(cls):
-        return Column(Integer, ForeignKey("states.id"), nullable=True)
+        return Column(types.UUID, ForeignKey("states.uuid"), nullable=True)
 
     @declared_attr
     def addr_state(cls):
