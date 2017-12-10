@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import Column, DateTime, Integer, Sequence, String
 from sqlalchemy.sql import func
-from .types import UUID
+from . import types
 
 
 
@@ -9,7 +9,7 @@ class IdMixin(object):
     """A mixin which defines an Id field to uniquely identify records within an
     application space.
     """
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, autoincrement=True, primary_key=True)
 
 
 class TimestampMixin(object):
@@ -30,4 +30,11 @@ class UUIDMixin(object):
     """A mixin which defines a globally unique identifier field for a record
     that can possibly be used to track an entity across applications.
     """
-    uuid = Column(UUID, nullable=False, unique=True, default=uuid.uuid4)
+    uuid = Column(types.UUID, nullable=False, unique=True, default=uuid.uuid4)
+
+
+class IdsMixin(IdMixin, UUIDMixin):
+    """A mixin which defines two globally unique identifier fields for a record
+    that can be used individually to identify records within an application space.
+    """
+    pass

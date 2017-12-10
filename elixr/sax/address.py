@@ -7,12 +7,12 @@ from sqlalchemy import Column, Float, ForeignKey, Integer, String, \
         UniqueConstraint
 from sqlalchemy.orm import relationship
 from elixr.base import AttrDict, Coordinates
-from .mixins import IdMixin
-from .meta import Model
+from .mixins import IdsMixin
+from . import meta, types
 
 
 
-class Country(Model, IdMixin):
+class Country(meta.Model, IdsMixin):
     """A model for storing Country data.
     """
     __tablename__ = 'countries'
@@ -20,12 +20,12 @@ class Country(Model, IdMixin):
     code = Column(String(3), nullable=False)
     name = Column(String(50), nullable=False, unique=True)
     states = relationship("State", back_populates="country")
-    
+
     def __str__(self):
         return self.name
 
 
-class State(Model, IdMixin):
+class State(meta.Model, IdsMixin):
     """A model for storing State data.
     """
     __tablename__ = 'states'
@@ -35,7 +35,7 @@ class State(Model, IdMixin):
 
     code = Column(String(3), nullable=False)
     name = Column(String(50), nullable=False)
-    country_id = Column(Integer, ForeignKey("countries.id"), nullable=False)
+    country_id = Column(types.UUID, ForeignKey("countries.uuid"), nullable=False)
     country = relationship("Country", back_populates="states")
 
     def __str__(self):
@@ -50,35 +50,35 @@ class State(Model, IdMixin):
 class AddressMixin(object):
     """A mixin which defines address fields for use within other models.
     """
-    addr_raw    = Column(String(200))
+    addr_raw = Column(String(200))
     addr_street = Column(String(100))
-    addr_town   = Column(String(50))
+    addr_town = Column(String(50))
     addr_landmark = Column(String(100))
     postal_code = Column(String(10))
-    
+
     @declared_attr
     def addr_state_id(cls):
         return Column(Integer, ForeignKey("states.id"), nullable=True)
-        
+
     @declared_attr
     def addr_state(cls):
         return relationship("State")
-        
+
     @property
     def address_dict(self):
         return self.to_dict(self)
-    
+
     @property
     def address_str(self):
         return self.to_str(self)
-    
+
     @staticmethod
     def to_dict(addr):
         addr_dict = dict(
-            landmark = addr.addr_landmark,
-            street = addr.addr_street,
-            town = addr.addr_town,
-            raw = addr.addr_raw,
+            landmark=addr.addr_landmark,
+            street=addr.addr_street,
+            town=addr.addr_town,
+            raw=addr.addr_raw,
         )
         if addr.addr_state:
             addr_dict['state'] = addr.addr_state.name
@@ -117,38 +117,38 @@ class CoordinatesMixin(object):
     """A mixin which defines coordinate fields for use within other models.
     """
     longitude = Column(Float)
-    latitude  = Column(Float)
-    altitude  = Column(Float)
+    latitude = Column(Float)
+    altitude = Column(Float)
     gps_error = Column(Integer)
 
     @property
     def coordinates(self):
         return Coordinates(
-            lng=self.longitude or 0.0, 
+            lng=self.longitude or 0.0,
             lat=self.latitude or 0.0,
-            alt=self.altitude, 
+            alt=self.altitude,
             error=self.gps_error)
 
 
 class LocatableMixin(AddressMixin, CoordinatesMixin):
-    """A convenience mixin which combines the fields defined by both the 
+    """A convenience mixin which combines the fields defined by both the
     AddressMixin and CoordinatesMixin.
     """
     pass
 
 
-class Address(Model, IdMixin, CoordinatesMixin):
+class Address(meta.Model, IdsMixin, CoordinatesMixin):
     """A model for storing Address data.
     """
     __tablename__ = 'addresses'
-    
-    raw    = Column(String(200), nullable=False)
+
+    raw = Column(String(200), nullable=False)
     street = Column(String(100))
-    town   = Column(String(50))
+    town = Column(String(50))
     landmark = Column(String(100))
     postal_code = Column(String(10))
-    state_id = Column(Integer, ForeignKey("states.id"), nullable=True)
-    state    = relationship("State", backref="addresses")
+    state_id = Column(types.UUID, ForeignKey("states.uuid"), nullable=True)
+    state = relationship("State", backref="addresses")
 
     def as_attrd(self):
         return AttrDict({

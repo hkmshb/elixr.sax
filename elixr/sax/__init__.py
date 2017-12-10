@@ -10,19 +10,13 @@ __version__ = '0.3.1'
 
 
 
-from .meta import (
-    BASE,
-    Model,
-)
-
-from .types import (
-    UUID,
-    Choice
-)
-
+# hint: packages are exposed instead of their contents in
+# order to ease replacing for meta.BASE and types.UUID
+from . import meta, types
 from .mixins import (
     IdMixin,
-    TimestampMixin,
+    IdsMixin,
+    UUIDMixin,
     IdTimestampMixin,
-    UUIDMixin
+    TimestampMixin
 )
