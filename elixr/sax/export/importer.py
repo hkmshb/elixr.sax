@@ -2,7 +2,7 @@ import sys
 from datetime import date, datetime
 from elixr.base import AttrDict
 from ..address import Country, State
-from ..orgz import PartyType, EmailContact, PhoneContact, Organisation
+from ..party import PartyType, EmailContact, PhoneContact, Organization
 
 
 # python version flag
@@ -42,7 +42,7 @@ def to_bool(value):
         # hack: needed for py2
         elif not py3k and 'long' in str(type(value)):
             return bool(value)
-        
+
         value = to_text(value)
         if not value:
             return None
@@ -60,9 +60,16 @@ def to_enum(enum_type, value):
                 return enum_type(value)
             except ValueError:
                 return None
+
         value = to_text(value)
-        if value and hasattr(enum_type, value):
-            return enum_type[value]
+        if value:
+            if hasattr(enum_type, value):
+                return enum_type[value]
+
+            # try other cases of the enum string name
+            for value in [value.lower(), value.upper(), value.capitalize()]:
+                if hasattr(enum_type, value):
+                    return enum_type[value]
     return None
 
 
@@ -71,29 +78,29 @@ class XRefResolver(object):
     `id` for a Model given a supposedly unique filter expression.
 
     It helps with cases where records are identified by a unique human-friendly
-    value order than their respectively numeric id values. For performance, 
+    value order than their respectively numeric id values. For performance,
     results are cached for reuse.
     """
     def __init__(self, dbsession):
         self.__dbsession = dbsession
         self.__cache = {}
-    
+
     def resolve(self, model_type, only_id=True, **filters):
         key = self.generate_key(model_type, only_id=only_id, **filters)
         if key not in self.__cache:
             fnquery = self.__dbsession.query
-            query = fnquery(model_type.id if only_id else model_type) \
+            query = fnquery(model_type.uuid if only_id else model_type) \
                         .filter_by(**filters)
             value = query.scalar() if only_id else query.one()
             if value:
                 self.__cache[key] = value
         return self.__cache.get(key)
-    
+
     def clear_cache(self):
         """Clears the cache maintained internally.
         """
         self.__cache.clear()
-    
+
     @staticmethod
     def generate_key(model_type, only_id, **filters):
         prefix = model_type.__name__
@@ -104,7 +111,7 @@ class XRefResolver(object):
 
 
 class ImporterBase(object):
-    
+
     def __init__(self, context, progress_callback=None):
         assert 'db' in context
         assert 'cache' in context
@@ -113,11 +120,11 @@ class ImporterBase(object):
             context = AttrDict(context)
         self.context = context
         self.errors = []
-    
+
     def error(self, row, col, message):
         message_seq = (self.sheet_name, row, col, message)
         self.errors.append(message_seq)
-    
+
     def resolve_xref(self, data, *xref_mapping):
         """Resolves Cross Reference records found within data using provided
         reference sources data.abs
@@ -140,11 +147,11 @@ class ImporterBase(object):
                     kw = {filter_field: value}
                     ids.append(resolve(model_type, only_id, **kw))
                 data[xref_field] = [id for id in ids if id]
-        
+
     def progress(self, *args):
         if self.progress_callback is not None:
             self.progress_callback(*args)
-    
+
     def is_empty_row(self, sheet, row, num_cols=30):
         # we've picked 30 as an arbitrary number of columns to test so that
         # caller doesn't specify the number.
@@ -155,7 +162,7 @@ class ImporterBase(object):
             except ValueError:
                 break
         return True
-    
+
     def get_cell_value(self, sheet, row, col, default=no_data):
         try:
             return sheet.cell(row=row, column=col).value
@@ -163,14 +170,14 @@ class ImporterBase(object):
             if default != no_data:
                 return default
             raise
-    
+
     def get_cell_and_found(self, sheet, row, col, default=''):
         try:
             value = sheet.cell(row=row, column=col).value
             return (value, True) if value else (default, False)
         except ValueError:
             return (default, False)
-    
+
     def get_bool_from_cell(self, sheet, row, col):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found:
@@ -180,24 +187,24 @@ class ImporterBase(object):
             self.error(row, col, ERROR_NOT_BOOLEAN)
             return None
         return value
-    
+
     def get_required_bool_from_cell(self, sheet, row, col):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not value:
             self.error(row, col, ERROR_MISSING_REQUIRED_TEXT)
             return None
         return self.get_bool_from_cell(sheet, row, col)
-    
+
     def get_date_from_cell(self, sheet, row, col, default=None):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found or value == '':
             return default
-        
+
         if isinstance(value, datetime):
             return value.date()
         if isinstance(value, date):
             return value
-        
+
         value = to_text(value)
         if value is not None:
             try:
@@ -206,14 +213,14 @@ class ImporterBase(object):
             except (TypeError, ValueError):
                 self.error(row, col, ERROR_NOT_DATE)
         return None
-    
+
     def get_required_date_from_cell(self, sheet, row, col):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found or value == '':
             self.error(row, col, ERROR_MISSING_REQUIRED_TEXT)
             return None
         return self.get_date_from_cell(sheet, row, col)
-    
+
     def get_enum_from_cell(self, sheet, row, col, enum_type, default=no_enum):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found or value == '':
@@ -225,7 +232,7 @@ class ImporterBase(object):
         if value is None:
             self.error(row, col, ERROR_NOT_ENUM_OF(enum_type))
         return value
-    
+
     def get_required_enum_from_cell(self, sheet, row, col, enum_type):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not found or value == '':
@@ -245,40 +252,40 @@ class ImporterBase(object):
                 self.error(row, col, ERROR_NOT_FLOAT)
                 valid, value = (False, default or None)
         return (value, found, valid)
-    
+
     def get_float_from_cell(self, sheet, row, col, default=0.0):
         value, found, valid = self.get_float_found_valid(sheet, row, col, default)
         return value
-    
+
     def get_required_float_from_cell(self, sheet, row, col):
         value, found, valid = self.get_float_found_valid(sheet, row, col)
         if not found:
             self.error(row, col, ERROR_NOT_FLOAT)
         return value
-    
+
     def get_id_from_cell(self, sheet, row, col, default=''):
         value, found, valid = self.get_text_found_valid(sheet, row, col, default)
         return value.strip()
-    
+
     def get_required_id_from_cell(self, sheet, row, col):
         value, found, valid = self.get_text_found_valid(sheet, row, col)
         if valid and not value:
             self.error(row, col, ERROR_MISSING_REQUIRED_TEXT)
         return value.strip()
-    
+
     def get_ids_from_cell(self, sheet, row, col):
         value, found, valid = self.get_text_found_valid(sheet, row, col)
         if not value:
             return []
         return [p.strip() for p in value.split(',') if p.strip()]
-    
+
     def get_required_ids_from_cell(self, sheet, row, col):
         value, found = self.get_cell_and_found(sheet, row, col)
         if not value:
             self.error(row, col, ERROR_MISSING_REQUIRED_TEXT)
             return []
         return self.get_ids_from_cell(sheet, row, col)
-    
+
     def get_int_found_valid(self, sheet, row, col, default=0):
         value, found = self.get_cell_and_found(sheet, row, col, default)
         valid = True
@@ -346,13 +353,13 @@ class ImporterBase(object):
 
 
 class ExactTextMatcher(object):
-    """Returns all texts found in `available_texts` which are exact match 
+    """Returns all texts found in `available_texts` which are exact match
     of `target_text`.
     """
     def __call__(self, available_texts, target_text):
         target_text = target_text.strip().lower()
         return [
-            t for t in available_texts 
+            t for t in available_texts
                 if target_text == t.strip().lower()
         ]
 
@@ -392,16 +399,16 @@ class MegaImporterBase(object):
         self.matcher =  matcher or PrefixedTextMatcher()
         self.context = context
         self.errors = []
-    
+
     @property
     def has_errors(self):
         return len(self.errors) > 0
-    
+
     @property
     def importers(self):
         message = 'Needs to be overriden by derived classes.'
         raise NotImplementedError(message)
-    
+
     def import_data(self, wb, progress_callback=None):
         matcher = self.matcher
         available_sheets = wb.get_sheet_names()
@@ -413,19 +420,19 @@ class MegaImporterBase(object):
                 imp = importer(self.context, progress_callback)
                 imp.import_data(wb)
                 self.errors.extend(imp.errors)
-            
+
             # restore original sheet_name for importer
             importer.sheet_name = target_name
-        
+
         if self.errors:
             self.context.db.rollback()
-    
+
     def summarise_errors(self):
         errors = {}
         for sheet_name, row, col, message in self.errors:
             sheet_errors = errors.setdefault(sheet_name, {})
             sheet_errors.setdefault(message, []).append((col, row))
-        
+
         error_lines = []
         for sheet_name, message_errors in sorted(errors.items()):
             if error_lines:
@@ -455,15 +462,15 @@ class MegaImporterBase(object):
                     error_cells.append(cell)
                 error_lines.append(', '.join(error_cells))
         return '\n'.join(error_lines)
-    
+
     @classmethod
     def make_for_exact_match(cls, context):
         return cls(context, ExactTextMatcher())
-    
+
     @classmethod
     def make_for_prefix_match(cls, context):
         return cls(context, PrefixedTextMatcher())
-    
+
     @classmethod
     def make_for_suffix_match(cls, context):
         return cls(context, SuffixedTextMatcher())
@@ -479,7 +486,7 @@ class AdminBoundaryImporter(ImporterBase):
         assert 'db' in context
         assert 'cache' in context
         super(AdminBoundaryImporter, self).__init__(context, progress_callback)
-    
+
     def create_country(self, row, data):
         try:
             country = Country(**data)
@@ -487,7 +494,7 @@ class AdminBoundaryImporter(ImporterBase):
         except Exception as ex:
             message_fmt = 'Country could not be created. Err: %s'
             self.error(row, 0, message_fmt % str(ex))
-    
+
     def create_state(self, row, data):
         self.resolve_xref(data, ('country_id', 'code', Country))
         try:
@@ -496,14 +503,14 @@ class AdminBoundaryImporter(ImporterBase):
         except Exception as ex:
             message_fmt = 'State could not be created. Err: %s'
             self.error(row, 0, message_fmt % str(ex))
-    
+
     def import_country(self, sh, row):
         row, nrows = (row + 2, sh.max_row)
         num_errors = len(self.errors)
         while row <= nrows:
             if self.is_empty_row(sh, row):
                 break
-            
+
             data = AttrDict()
             data['code'] = self.get_required_id_from_cell(sh, row, 1)
             data['name'] = self.get_required_text_from_cell(sh, row, 2)
@@ -513,14 +520,14 @@ class AdminBoundaryImporter(ImporterBase):
             self.progress(row, nrows)
             row += 1
         return (row + 1)
-    
+
     def import_state(self, sh, row):
         row, nrows = (row + 2, sh.max_row)
         num_errors = len(self.errors)
         while row <= nrows:
             if self.is_empty_row(sh, row):
                 break
-            
+
             data = AttrDict()
             data['code'] = self.get_required_id_from_cell(sh, row, 1)
             data['name'] = self.get_required_text_from_cell(sh, row, 2)
@@ -531,7 +538,7 @@ class AdminBoundaryImporter(ImporterBase):
             self.progress(row, nrows)
             row += 1
         return (row + 1)
-        
+
     def process(self):
         sh, row, nrows = (self.sheet, 1, self.sheet.max_row)
         ## flags are provided in reverse order as `list.pop` operates
@@ -541,14 +548,14 @@ class AdminBoundaryImporter(ImporterBase):
             if not flags: break
             if self.is_empty_row(sh, row):
                 row += 1; continue
-            
+
             value = sh.cell(row=row, column=1).value
             if value not in flags:
                 row += 1; continue
-            
+
             while value != flags.pop(): 
                 pass # keep popping ;-)
-            
+
             if value == 'countries':
                 row = self.import_country(sh, row)
             elif value == 'states':
@@ -595,33 +602,33 @@ class PartyImporterBase(ImporterBase):
         self.progress(row, nrows)
 
 
-class OrganisationImporter(PartyImporterBase):
-    """An importer to process and import Organisation data from an excel file.
+class OrganizationImporter(PartyImporterBase):
+    """An importer to process and import Organization data from an excel file.
     """
     IGNORE_REQ = '-x-'
-    sheet_name = 'organisations'
-    subtype = PartyType.organisation
-    fncode_type = None
+    sheet_name = 'organizations'
+    subtype = PartyType.ORGANIZATION
+    orgtype_type = None
 
     def __init__(self, context, progress_callback=None):
-        super(OrganisationImporter, self).__init__(context, progress_callback)
-        self.__root = context.db.query(Organisation).first()
-        assert self.fncode_type != None
-    
+        super(OrganizationImporter, self).__init__(context, progress_callback)
+        self.__root = context.db.query(Organization).first()
+        assert self.orgtype_type != None
+
     def add_item(self, row, item):
         if not item: return
         # be sure only single root exists
         if not item.parent and not item.parent_id:
             if self.__root:
-                message = 'Root organisation already exists.'
+                message = 'Root organization already exists.'
                 self.error(row, 0, message)
                 return
             else:
                 self.__root = item
-        
+
         # all is good at this point
         self.context.db.add(item)
-    
+
     def create_item(self, row, data):
         # extract contact fields
         contacts = []
@@ -629,32 +636,32 @@ class OrganisationImporter(PartyImporterBase):
             contacts.append(EmailContact(address=email))
         for number in (data.pop('phones') or []):
             contacts.append(PhoneContact(number=number))
-        
+
         self.resolve_xref(data, 
             ('addr_state_id', 'code', State),
-            ('parent_id', 'short_name', Organisation))
-        data.fncode = data.fncode.value     # norm into int
+            ('parent_id', 'short_name', Organization))
+        data.orgtype = data.orgtype.value     # norm into int
         try:
-            item = Organisation(**data)
+            item = Organization(**data)
             if contacts:
                 item.contacts.extend(contacts)
             return item
         except Exception as ex:
-            message_fmt = 'Organisation could not be created. Err: %s'
+            message_fmt = 'Organization could not be created. Err: %s'
             self.error(row, 0, message_fmt % str(ex))
         return None
-    
+
     def post_process(self):
         pass
-        
+
     def process_chunk(self, row, col, data):
-        sh, ftype = (self.sheet, self.fncode_type)
+        sh, ftype = (self.sheet, self.orgtype_type)
         data['parent_id'] = self.get_required_id_from_cell(sh, row, col)
-        data['identifier'] = self.get_required_id_from_cell(sh, row, col+1)
-        data['fncode'] = self.get_required_enum_from_cell(sh, row, col+2, ftype)
+        data['code'] = self.get_required_id_from_cell(sh, row, col+1)
+        data['orgtype'] = self.get_required_enum_from_cell(sh, row, col+2, ftype)
         data['short_name'] = self.get_text_from_cell(sh, row, col+3, None)
         ## break-out to capture party chunk
-        col = super(OrganisationImporter, self).process_chunk(row, col+4, data)
+        col = super(OrganizationImporter, self).process_chunk(row, col+4, data)
         ## return to normal flow
         data['website_url'] = self.get_text_from_cell(sh, row, col+1, None)
         data['emails'] = self.get_ids_from_cell(sh, row, col+2)
