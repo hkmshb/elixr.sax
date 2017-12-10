@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 
 ## meta data
-__version__ = "0.3.3"
+__version__ = "0.4"
 __author__  = 'Hazeltek Solutions'
 
 
