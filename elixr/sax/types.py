@@ -10,7 +10,7 @@ class UUID(TypeDecorator):
     Uses PostgreSQL's UUID type, otherwise uses CHAR(32), storing as stringified
     hex values.
 
-    # hint: adapted from sqlalchemy docs on 'Backend-agnostic GUID Type'
+    :hint: adapted from sqlalchemy docs on 'Backend-agnostic GUID Type'
     """
     impl = CHAR
 
@@ -43,7 +43,7 @@ class Choice(TypeDecorator):
     works with :mod:`enum` in the standard library of Python 3.4+ (the enum34_
     backported package on PyPi is compatible too for ``< 3.4``).
 
-    # hint: adapted from sqlalchemy_utils ChoiceType.
+    : hint: adapted from sqlalchemy_utils ChoiceType.
     """
     impl = Integer
 

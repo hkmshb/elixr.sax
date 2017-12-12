@@ -5,8 +5,8 @@ from . import meta
 
 Resource = namedtuple('Resource', ['engine', 'session'])
 
-def make_session(conn_str='sqlite:///:memory:', initdb_callback=None):
-    engine = meta.create_engine(conn_str)
+def make_session(conn_str='sqlite:///:memory:', initdb_callback=None, echo=False):
+    engine = meta.create_engine(conn_str, echo)
     meta.metadata.create_all(engine)
 
     SASession = meta.sessionmaker(bind=engine)

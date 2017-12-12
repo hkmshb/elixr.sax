@@ -9,7 +9,7 @@ from elixr.sax.party import (
 )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def db():
     ## setup
     resx = utils.make_session()
@@ -71,6 +71,7 @@ class TestPerson(TestBase):
         assert party and party.name == person.first_name \
            and party.subtype == PartyType.PERSON \
            and party.deleted == False
+        assert party.uuid == person.uuid
 
     def test_contacts_can_be_committed(self, db):
         self._clear_tables(db)
@@ -123,7 +124,7 @@ class TestOrganisation(TestBase):
             db.commit()
         db.rollback()
 
-    def test_commit_fails_for_non_unique_code(self, db):
+    def test_commit_fails_for_non_d_code(self, db):
         self._clear_tables(db)
         db.add(Organization(name='Hazeltek', code="01"))
         db.commit()

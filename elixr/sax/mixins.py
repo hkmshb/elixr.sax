@@ -1,5 +1,6 @@
 import uuid
 from sqlalchemy import Column, DateTime, Integer, Sequence, String
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.sql import func
 from . import types
 
@@ -30,7 +31,9 @@ class UUIDMixin(object):
     """A mixin which defines a globally unique identifier field for a record
     that can possibly be used to track an entity across applications.
     """
-    uuid = Column(types.UUID, nullable=False, unique=True, default=uuid.uuid4)
+    @declared_attr
+    def uuid(cls):
+        return Column(types.UUID, nullable=False, unique=True, default=uuid.uuid4)
 
 
 class IdsMixin(IdMixin, UUIDMixin):
