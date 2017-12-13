@@ -27,21 +27,6 @@ class MockLocation(Model, IdMixin, CoordinatesMixin):
     name = Column(String(20), nullable=False)
 
 
-@pytest.fixture(scope='module')
-def db():
-    def initdb(db):
-        db.add(Country(name='Nigeria', code='NG'))
-        db.add(Country(name='Algeria', code='AL'))
-        db.commit()
-
-    # setup & create records
-    resx = utils.make_session(initdb_callback=initdb)
-    yield resx.session
-
-    # teardown
-    utils.drop_tables(resx.engine)
-
-
 class BaseTest(object):
     _country_ng, _state_ab = (None, None)
 
@@ -63,84 +48,84 @@ class TestCountry(object):
         country = Country(name='Nigeria', code='NG')
         assert 'Nigeria' == str(country)
 
-    def test_commit_fails_for_duplicate_name(self, db):
+    def test_commit_fails_for_duplicate_name(self, addr_db):
         with pytest.raises(Exception):
-            db.add(Country(name='Nigeria', code='??'))
-            db.commit()
+            addr_db.add(Country(name='Nigeria', code='??'))
+            addr_db.commit()
 
-    def test_commit_fails_for_blank_name(self, db):
+    def test_commit_fails_for_blank_name(self, addr_db):
         with pytest.raises(Exception):
-            db.add(Country(code='NG'))
-            db.commit()
-        db.rollback()   # why? see hint at module top
+            addr_db.add(Country(code='NG'))
+            addr_db.commit()
+        addr_db.rollback()   # why? see hint at module top
 
-    def test_commit_fails_for_blank_code(self, db):
+    def test_commit_fails_for_blank_code(self, addr_db):
         with pytest.raises(Exception):
-            db.add(Country(name='Kenya'))
-            db.commit()
-        db.rollback()
+            addr_db.add(Country(name='Kenya'))
+            addr_db.commit()
+        addr_db.rollback()
 
-    def test_rel_states_empty_when_country_has_no_states(self, db):
-        country = db.query(Country).filter(Country.name == 'Nigeria').one()
+    def test_rel_states_empty_when_country_has_no_states(self, addr_db):
+        country = addr_db.query(Country).filter(Country.name == 'Nigeria').one()
         assert country and country.name == 'Nigeria' \
            and country.states == []
 
 
 class TestState(BaseTest):
 
-    def test_string_repr_with_country(self, db):
-        ng = db.query(Country).filter(Country.name == 'Nigeria').one()
+    def test_string_repr_with_country(self, addr_db):
+        ng = addr_db.query(Country).filter(Country.name == 'Nigeria').one()
         state = State(name='Abuja', code='AB', country=ng)
         assert 'Abuja, Nigeria' == str(state)
 
-    def test_string_repr_without_country(self, db):
+    def test_string_repr_without_country(self, addr_db):
         state = State(name='Abuja', code='AB')
         assert 'Abuja' == str(state)
 
-    def test_commit_fails_for_omitted_country(self, db):
+    def test_commit_fails_for_omitted_country(self, addr_db):
         with pytest.raises(Exception):
-            db.add(State(name='Abuja', code='AB'))
-            db.commit()
-        db.rollback()   # why? see hint at module top
+            addr_db.add(State(name='Abuja', code='AB'))
+            addr_db.commit()
+        addr_db.rollback()   # why? see hint at module top
 
-    def test_can_save_well_formed_state_object(self, db):
-        db.add(State(name='Abuja', code='AB', country=self._country(db)))
-        db.commit()
+    def test_can_save_well_formed_state_object(self, addr_db):
+        addr_db.add(State(name='Abuja', code='AB', country=self._country(addr_db)))
+        addr_db.commit()
 
-        state = db.query(State).filter(State.name == 'Abuja').one()
+        state = addr_db.query(State).filter(State.name == 'Abuja').one()
         assert state and state.name == 'Abuja'
 
-    def test_commit_fails_for_duplicate_name_for_same_country(self, db):
-        country = self._country(db)
-        db.add(State(name='Lagos', code='LG', country=country))
-        db.commit()
+    def test_commit_fails_for_duplicate_name_for_same_country(self, addr_db):
+        country = self._country(addr_db)
+        addr_db.add(State(name='Lagos', code='LG', country=country))
+        addr_db.commit()
 
         with pytest.raises(Exception):
-            db.add(State(name='Lagos', code='??', country=country))
-            db.commit()
+            addr_db.add(State(name='Lagos', code='??', country=country))
+            addr_db.commit()
 
-        db.rollback()   # why? see hint at the top
+        addr_db.rollback()   # why? see hint at the top
 
-    def test_commit_fails_for_blank_name(self, db):
-        country = self._country(db)
+    def test_commit_fails_for_blank_name(self, addr_db):
+        country = self._country(addr_db)
         with pytest.raises(Exception):
-            db.add(State(code='??', country=country))
-            db.commit()
-        db.rollback()   # why? see hint at the top
+            addr_db.add(State(code='??', country=country))
+            addr_db.commit()
+        addr_db.rollback()   # why? see hint at the top
 
-    def test_commit_fails_for_blank_code(self, db):
-        country = self._country(db)
+    def test_commit_fails_for_blank_code(self, addr_db):
+        country = self._country(addr_db)
         with pytest.raises(Exception):
-            db.add(State(name='Rivers', country=country))
-            db.commit()
-        db.rollback()
+            addr_db.add(State(name='Rivers', country=country))
+            addr_db.commit()
+        addr_db.rollback()
 
-    def test_relationships_traversable_within_state_object(self, db):
-        country = self._country(db)
-        db.add(State(name='Kano', code='KN', country=country))
-        db.commit()
+    def test_relationships_traversable_within_state_object(self, addr_db):
+        country = self._country(addr_db)
+        addr_db.add(State(name='Kano', code='KN', country=country))
+        addr_db.commit()
 
-        state = db.query(State).filter(State.name == 'Kano').one()
+        state = addr_db.query(State).filter(State.name == 'Kano').one()
         assert state and state.country == country \
            and state.country.uuid == state.country_id \
            and state in state.country.states
@@ -148,15 +133,15 @@ class TestState(BaseTest):
 
 class TestAddress(BaseTest):
 
-    def _address(self, db):
+    def _address(self, addr_db):
         return Address(
             raw='No 1 Bank Road, Bwari 720015, Abuja, Nigeria ::',
             street='No 1 Bank Road', town='Bwari', postal_code='720015',
-            landmark='Bwari Post Office', state=self._state(db))
+            landmark='Bwari Post Office', state=self._state(addr_db))
 
-    def test_string_repr_with_all_fields(self, db):
+    def test_string_repr_with_all_fields(self, addr_db):
         # hint: include '::' in raw to be sure raw is not used by str(addr)
-        addr = self._address(db)
+        addr = self._address(addr_db)
         expected = ('No 1 Bank Road, Bwari 720015, Abuja, Nigeria '
                  +  '(closest landmark: Bwari Post Office)')
         assert expected == str(addr)
@@ -165,15 +150,15 @@ class TestAddress(BaseTest):
         addr = Address(raw='1 Alu Avenue')
         assert '1 Alu Avenue' == str(addr)
 
-    def test_commit_fails_for_blank_raw(self, db):
+    def test_commit_fails_for_blank_raw(self, addr_db):
         with pytest.raises(Exception):
-            db.add(Address(street='No 1 Bank Road', town='Bwari', 
-                           postal_code='720015', state=self._state(db)))
-            db.commit()
-        db.rollback()
+            addr_db.add(Address(street='No 1 Bank Road', town='Bwari', 
+                           postal_code='720015', state=self._state(addr_db)))
+            addr_db.commit()
+        addr_db.rollback()
 
-    def test_dict_repr(self, db):
-        address = self._address(db)
+    def test_dict_repr(self, addr_db):
+        address = self._address(addr_db)
         addr_dict = address.as_dict()
         fields = ('raw', 'street', 'town', 'landmark', 'postal_code')
         for f in fields:
@@ -189,32 +174,32 @@ class TestAddress(BaseTest):
 
 
 class TestAddressMixinMock(BaseTest):
-    def _mock(self, db):
+    def _mock(self, addr_db):
         return MockAddress(
             name='mock', 
             addr_raw='No 1 Bank Road, Bwari 720015, Abuja, Nigeria ::',
             addr_street='No 1 Bank Road', addr_town='Bwari', 
             addr_landmark='Bwari Post Office',
-            postal_code='720015', addr_state=self._state(db))
+            postal_code='720015', addr_state=self._state(addr_db))
 
-    def test_address_str_from_address_mixin(self, db):
-        mock = self._mock(db)
+    def test_address_str_from_address_mixin(self, addr_db):
+        mock = self._mock(addr_db)
         expected = ('No 1 Bank Road, Bwari 720015, Abuja, Nigeria '
                  +  '(closest landmark: Bwari Post Office)')
         assert expected == mock.address_str
 
-    def test_addres_dict_from_address_mixin(self, db):
-        mock = self._mock(db)
+    def test_addres_dict_from_address_mixin(self, addr_db):
+        mock = self._mock(addr_db)
         addr_dict = mock.address_dict
         fields = ('addr_raw', 'addr_street', 'addr_town', 'addr_landmark', 'postal_code')
         for f in fields:
             assert getattr(mock, f) == addr_dict.get(f.replace('addr_', ''))
 
-    def test_raw_and_other_address_fields_optional(self, db):
-        db.add(MockAddress(name='mock'))
-        db.commit()
+    def test_raw_and_other_address_fields_optional(self, addr_db):
+        addr_db.add(MockAddress(name='mock'))
+        addr_db.commit()
 
-        mock = db.query(MockAddress).filter(MockAddress.name == 'mock').one()
+        mock = addr_db.query(MockAddress).filter(MockAddress.name == 'mock').one()
         assert mock and mock.name == 'mock' \
            and mock.addr_raw == None \
            and mock.addr_street == None \

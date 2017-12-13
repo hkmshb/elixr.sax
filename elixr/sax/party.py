@@ -48,7 +48,7 @@ parties_contact_details_table = Table(
 )
 
 
-class ContactDetail(meta.Model, IdsMixin):
+class ContactDetail(meta.Model, IdsMixin, TimestampMixin):
     """A Single-Table Inheritance model for storing all forms of contact details.
     """
     __tablename__ = 'contact_details'
@@ -130,6 +130,15 @@ class Person(Party):
         self.name = value
 
 
+class OrganizationType(meta.Model, IdsMixin, TimestampMixin):
+    """A model to define the classifications for Organizations.
+    """
+    __tablename__ = 'organization_types'
+    name = Column(String(30), nullable=False, unique=True)
+    title = Column(String(30), nullable=False)
+    organizations = relationship('Organization', back_populates='type')
+
+
 class Organization(Party, CoordinatesMixin):
     """A model for storing Organization details.
 
@@ -144,11 +153,12 @@ class Organization(Party, CoordinatesMixin):
 
     uuid = Column(types.UUID, ForeignKey("parties.uuid"), primary_key=True)
     parent_id = Column(types.UUID, ForeignKey("organizations.uuid"))
-    orgtype = Column(Integer, nullable=True)
     code = Column(String(30), nullable=False, unique=True)
     short_name = Column(String(15), unique=True)
     description = Column(String(255))
     date_established = Column(Date)
     website_url = Column(String(150))
+    type_id = Column(types.UUID, ForeignKey("organization_types.uuid"), unique=True)
+    type = relationship("OrganizationType", back_populates="organizations")
     children = relationship("Organization", foreign_keys=[parent_id],
                             backref=backref("parent", remote_side=[uuid]))

@@ -5,17 +5,10 @@ from elixr.sax.meta import Model
 from elixr.sax import utils
 from elixr.sax.party import (
     Gender, MaritalStatus, ContactType, PartyType,
-    EmailContact, PhoneContact, Party, Person, Organization
+    EmailContact, PhoneContact, Party, Person, Organization,
+    OrganizationType
 )
 
-
-@pytest.fixture(scope='function')
-def db():
-    ## setup
-    resx = utils.make_session()
-    return resx.session
-    ## teardown
-    utils.drop_tables(resx.engine)
 
 
 class TestBase(object):
@@ -124,7 +117,7 @@ class TestOrganisation(TestBase):
             db.commit()
         db.rollback()
 
-    def test_commit_fails_for_non_d_code(self, db):
+    def test_commit_fails_for_non_unique_code(self, db):
         self._clear_tables(db)
         db.add(Organization(name='Hazeltek', code="01"))
         db.commit()
@@ -132,3 +125,76 @@ class TestOrganisation(TestBase):
             db.add(Organization(name="Hazel", code="01"))
             db.commit()
         db.rollback()
+
+
+class TestOrganizationType(object):
+
+    def test_organization_type_has_organizations_property(self, db):
+        org_type = OrganizationType(name='root', title='Root')
+        db.add(org_type)
+        db.commit()
+        assert org_type.organizations is not None \
+           and len(org_type.organizations) == 0
+
+    def test_commit_fails_for_non_unique_name(self, db):
+        db.add(OrganizationType(name='root', title='Root'))
+        db.commit()
+        with pytest.raises(exc.IntegrityError):
+            db.add(OrganizationType(name='root', title='Root'))
+            db.commit()
+        db.rollback()
+
+    def test_can_save_and_get_organization(self, db):
+        org = Organization(name='Org', code='org')
+        db.add(org)
+        db.commit()
+
+        assert org and org.id is not None \
+           and org.uuid is not None
+
+        orgs = db.query(Organization).all()
+        assert orgs and len(orgs) == 1
+
+    def test_organization_cannot_belong_to_multiple_organization_types(self, db):
+        org = Organization(name='Org', code='org')
+        org_type1 = OrganizationType(name='orgtype1', title='Org Type 1')
+        org_type2 = OrganizationType(name='orgtype2', title='Org Type 2')
+        org_type1.organizations.append(org)
+        org_type2.organizations.append(org)
+
+        db.add_all([org_type1, org_type2])
+        db.commit()
+
+        assert org.type_id == org_type2.uuid
+        assert len(org_type1.organizations) == 0 \
+           and len(org_type2.organizations) == 1
+
+    def test_assigning_organization_type_for_organization(self, db):
+        org = Organization(name='Org', code='org-1')
+        org_type1 = OrganizationType(name='orgtype', title='Org Type')
+        org_type1.organizations.append(org)
+
+        org2 = Organization(name='Org2', code='org-2')
+        org_type2 = OrganizationType(name='orgtype2', title='Org Type2')
+        org_type2.organizations.append(org2)
+
+        db.add_all([org_type1, org_type2])
+        db.commit()
+
+        assert db.query(OrganizationType).count() == 2
+        assert db.query(Organization).count() == 2
+
+        rvalue = db.query(OrganizationType).filter_by(name='orgtype').first()
+        assert rvalue and rvalue.uuid is not None
+        assert rvalue.organizations and len(rvalue.organizations) == 1
+        assert rvalue.organizations[0].uuid == org.uuid
+
+    def test_access_organization_type_on_organization(self, db):
+        org = Organization(name='Org', code='org-1')
+        org_type = OrganizationType(name='orgtype', title='Org Type')
+        org_type.organizations.append(org)
+        db.add(org_type)
+        db.commit()
+
+        assert org.id is not None and org.type is not None
+        assert org.type.name == org_type.name

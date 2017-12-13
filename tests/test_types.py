@@ -19,16 +19,6 @@ class MockPerson(Model):
     gender = Column(Choice(Gender), nullable=False)
 
 
-@pytest.fixture(scope='module')
-def db():
-    # setup
-    resx = utils.make_session()
-    yield resx.session
-
-    # teardown
-    utils.drop_tables(resx.engine)
-
-
 class TestChoiceType(object):
     def test_can_save_mock_person(self, db):
         person = MockPerson(name='john', gender=Gender.male)
