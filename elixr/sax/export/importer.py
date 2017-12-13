@@ -2,7 +2,9 @@ import sys
 from datetime import date, datetime
 from elixr.base import AttrDict
 from ..address import Country, State
-from ..party import PartyType, EmailContact, PhoneContact, Organization
+from ..party import (
+    PartyType, EmailContact, PhoneContact, Organization, OrganizationType
+)
 
 
 # python version flag
@@ -309,11 +311,11 @@ class ImporterBase(object):
                 self.error(row, col, ERROR_NOT_INT)
                 valid, value = (False, None)
         return (value, found, valid)
-    
+
     def get_int_from_cell(self, sheet, row, col, default=0):
         value, found, valid = self.get_int_found_valid(sheet, row, col, default)
         return value
-    
+
     def get_required_int_from_cell(self, sheet, row, col):
         value, found, valid = self.get_int_found_valid(sheet, row, col)
         if not found:
@@ -329,11 +331,11 @@ class ImporterBase(object):
                 self.error(row, col, ERROR_NOT_UNICODE_OR_ASCII)
                 valid, value = (False, default)
         return (value, found, valid)
-    
+
     def get_text_from_cell(self, sheet, row, col, default=''):
         value, found, valid = self.get_text_found_valid(sheet, row, col, default)
         return value
-    
+
     def get_required_text_from_cell(self, sheet, row, col):
         value, found, valid = self.get_text_found_valid(sheet, row, col)
         if valid and not value:
@@ -345,7 +347,7 @@ class ImporterBase(object):
         if self.sheet_name not in self.wb.sheetnames:
             return
         return self.wb.get_sheet_by_name(self.sheet_name)
-    
+
     def import_data(self, wb):
         self.wb = wb
         if self.sheet:
@@ -578,16 +580,16 @@ class PartyImporterBase(ImporterBase):
         data['addr_landmark'] = self.get_text_from_cell(sh, row, col+4, None)
         data['postal_code'] = self.get_text_from_cell(sh, row, col+5, None)
         return col+5
-    
+
     def create_item(self, row, data):
         raise NotImplementedError()
-    
+
     def add_item(self, row, item):
         raise NotImplementedError()
-    
+
     def post_process(self):
         pass
-    
+
     def process(self):
         sh, nrows = (self.sheet, self.sheet.max_row)
         for row in range(2, nrows + 1):
@@ -602,18 +604,49 @@ class PartyImporterBase(ImporterBase):
         self.progress(row, nrows)
 
 
+class OrganizationTypeImporter(ImporterBase):
+    """An importer to process and import Organization data from an excel file.
+    """
+    sheet_name = 'organization-types'
+
+    def __init__(self, context, progress_callback=None):
+        assert 'db' in context
+        assert 'cache' in context
+        super(OrganizationTypeImporter, self).__init__(context, progress_callback)
+
+    def create_organization_type(self, row, data):
+        try:
+            org_type = OrganizationType(**data)
+            self.context.db.add(org_type)
+        except Exception as ex:
+            message_fmt = 'OrganizationType could not be created. Err: %s'
+            self.error(row, 0, message_fmt % str(ex))
+
+    def process(self):
+        sh, nrows = (self.sheet, self.sheet.max_row)
+        for row in range(2, nrows + 1):
+            num_errors = len(self.errors)
+
+            data = AttrDict()
+            data['name'] = self.get_required_id_from_cell(sh, row, 1)
+            data['title'] = self.get_required_text_from_cell(sh, row, 2)
+            if num_errors <= len(self.errors):
+                self.create_organization_type(row, data)
+                self.progress(row, nrows)
+            row += 1
+        self.progress(row, nrows)
+
+
 class OrganizationImporter(PartyImporterBase):
     """An importer to process and import Organization data from an excel file.
     """
     IGNORE_REQ = '-x-'
     sheet_name = 'organizations'
     subtype = PartyType.ORGANIZATION
-    orgtype_type = None
 
     def __init__(self, context, progress_callback=None):
         super(OrganizationImporter, self).__init__(context, progress_callback)
         self.__root = context.db.query(Organization).first()
-        assert self.orgtype_type != None
 
     def add_item(self, row, item):
         if not item: return
@@ -637,10 +670,10 @@ class OrganizationImporter(PartyImporterBase):
         for number in (data.pop('phones') or []):
             contacts.append(PhoneContact(number=number))
 
-        self.resolve_xref(data, 
+        self.resolve_xref(data,
             ('addr_state_id', 'code', State),
-            ('parent_id', 'short_name', Organization))
-        data.orgtype = data.orgtype.value     # norm into int
+            ('parent_id', 'short_name', Organization),
+            ('type_id', 'name', OrganizationType))
         try:
             item = Organization(**data)
             if contacts:
@@ -655,10 +688,10 @@ class OrganizationImporter(PartyImporterBase):
         pass
 
     def process_chunk(self, row, col, data):
-        sh, ftype = (self.sheet, self.orgtype_type)
+        sh = self.sheet
         data['parent_id'] = self.get_required_id_from_cell(sh, row, col)
         data['code'] = self.get_required_id_from_cell(sh, row, col+1)
-        data['orgtype'] = self.get_required_enum_from_cell(sh, row, col+2, ftype)
+        data['type_id'] = self.get_text_from_cell(sh, row, col+2, None)
         data['short_name'] = self.get_text_from_cell(sh, row, col+3, None)
         ## break-out to capture party chunk
         col = super(OrganizationImporter, self).process_chunk(row, col+4, data)

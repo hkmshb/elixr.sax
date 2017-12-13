@@ -7,54 +7,25 @@ from sqlalchemy.orm import exc
 from elixr.base import AttrDict
 from elixr.sax import utils
 from elixr.sax.address import Country, State
-from elixr.sax.party import Gender, EmailContact, PhoneContact, Organization
+from elixr.sax.party import (
+    Gender, EmailContact, PhoneContact, Organization, OrganizationType
+)
 from elixr.sax.export.importer import (
     XRefResolver, ImporterBase, AdminBoundaryImporter, OrganizationImporter,
-    ExactTextMatcher, PrefixedTextMatcher, SuffixedTextMatcher
+    OrganizationTypeImporter, ExactTextMatcher, PrefixedTextMatcher, 
+    SuffixedTextMatcher
 )
 
 
-DIR_FIXTURES = os.path.join(os.path.dirname(__file__), 'fixtures')
-
-@pytest.fixture(scope='module')
-def cache():
-    def initdb(session):
-        ca = Country(code='CA', name='Canada')
-        ng = Country(code='NG', name='Nigeria')
-        session.add_all([
-            ca, ng,
-            State(code='BC', name='British Columbia', country=ca),
-            State(code='BC', name='Bauchi', country=ng),    # wrong code ;-D
-        ])
-        session.commit()
-
-    ## setup
-    resx = utils.make_session(initdb_callback=initdb)
-    yield XRefResolver(resx.session)
-    ## teardown
-    utils.drop_tables(resx.engine)
-
-
-@pytest.fixture
-def db():
-    ## setup
-    resx = utils.make_session()
-    yield resx.session
-    ## teardown
-    utils.drop_tables(resx.engine)
-
-
-def wb():
-    fp = os.path.join(DIR_FIXTURES, 'importer-data.xlsx')
-    return openpyxl.load_workbook(fp, read_only=True)
-
 @pytest.fixture(scope='module')
 def imp_vr():
+    from conftest import wb
     return ValueReader({'wb': wb()})
 
 
 @pytest.fixture(scope='module')
 def imp_adb():
+    from conftest import db, cache
     _db = next(db())
     cache = XRefResolver(_db)
     return AdminBoundaryImporter({'db': _db, 'cache': cache})
@@ -326,6 +297,7 @@ class TestTextMatchers(object):
 class TestAdminBoundaryImporter(object):
 
     def test_countries_import(self, imp_adb):
+        from conftest import wb
         db = imp_adb.context.db
         utils.clear_tables(db, 'states', 'countries')
 
@@ -344,11 +316,13 @@ class TestAdminBoundaryImporter(object):
         imp_adb.errors = []
         imp_adb.sheet_name = 'states'
 
+        from conftest import wb
         with pytest.raises(Exception):
             imp_adb.import_data(wb())
         db.rollback()
 
     def test_states_import_with_existing_xref_passes(self, imp_adb):
+        from conftest import wb
         db, _wb = (imp_adb.context.db, wb())
         utils.clear_tables(db, 'states', 'countries')
 
@@ -365,6 +339,7 @@ class TestAdminBoundaryImporter(object):
         assert found == 2
 
     def test_countries_states_import(self, imp_adb):
+        from conftest import wb
         db, _wb = (imp_adb.context.db, wb())
         utils.clear_tables(db, 'states', 'countries')
 
@@ -379,6 +354,7 @@ class TestAdminBoundaryImporter(object):
         assert found2 == 4
 
     def test_countries_after_states_listings_not_processed(self, imp_adb):
+        from conftest import wb
         db, _wb = (imp_adb.context.db, wb())
         utils.clear_tables(db, 'states', 'countries')
 
@@ -399,6 +375,7 @@ class TestAdminBoundaryImporter(object):
         assert len(found2) == 2
 
     def test_countries_after_states_listing_not_processed2(self, imp_adb):
+        from conftest import wb
         db, _wb = (imp_adb.context.db, wb())
         utils.clear_tables(db, 'states', 'countries')
 
@@ -413,22 +390,32 @@ class TestAdminBoundaryImporter(object):
         assert found2 == 3
 
 
-class TestOrganizationImporter(object):
+class TestOrganizationTypeImporter(object):
 
-    def test_instantiation_fails_if_orgtype_type_not_set(self, db):
-        with pytest.raises(AssertionError):
-            OrganizationImporter(AttrDict(db=db, cache=''))
-
-    def test_organisations_import(self, cache):
-        from enum import Enum
-        class OrgType(Enum):
-            hq, branch = (1, 2)
+    def test_organization_type_import(self, cache):
+        from conftest import wb
 
         db = cache._XRefResolver__dbsession
-        OrganizationImporter.orgtype_type = OrgType
-        utils.clear_tables(db, 'contact_details', 'organisations')
+        utils.clear_tables(db, 'organisation_types')
 
         context = AttrDict(db=db, cache=cache)
+        importer = OrganizationTypeImporter(context)
+        importer.import_data(wb())
+        assert len(importer.errors) == 0
+        found = db.query(OrganizationType).count()
+        assert found == 2
+
+
+class TestOrganizationImporter(object):
+
+    def test_organisations_import(self, cache2):
+        from enum import Enum
+        from conftest import wb
+
+        db = cache2._XRefResolver__dbsession
+        utils.clear_tables(db, 'contact_details', 'organisations')
+
+        context = AttrDict(db=db, cache=cache2)
         importer = OrganizationImporter(context)
         importer.import_data(wb())
         assert len(importer.errors) == 0
