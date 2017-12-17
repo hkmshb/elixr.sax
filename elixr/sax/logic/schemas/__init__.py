@@ -82,7 +82,7 @@ def default_organization_type_schema():
     }
 
 
-def default_organization_schema():
+def default_organization_schema(for_root=False):
     schema = {
         'code': (col.Str,),
         'short_name': (col.Str, node.optional()),
@@ -92,6 +92,10 @@ def default_organization_schema():
         'parent_id': (UUID, node.optional(), node.validator(col.uuid)),
         'type_id': (UUID, node.optional(), node.validator(col.uuid))
     }
+    if not for_root:
+        schema['parent_id'] = (UUID, node.validator(col.uuid))
+        schema['type_id'] = (UUID, node.validator(col.uuid))
+
     schema.update(_default_party_schema())
     schema.update(coordinate_mixin_schema())
     return schema

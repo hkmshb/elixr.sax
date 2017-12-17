@@ -68,7 +68,7 @@ class EntityMixin(IdsMixin, TimestampMixin):
         if not found:
             try:
                 found = query.filter(cls.uuid == reference).one_or_none()
-            except ValueError:
+            except (ValueError, exc.StatementError):
                 found = None
 
         return found
