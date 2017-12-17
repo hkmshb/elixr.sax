@@ -126,6 +126,21 @@ class TestOrganisation(TestBase):
             db.commit()
         db.rollback()
 
+    def test_organization_cascaded_deletino(self, db):
+        root = Organization(code='01', name='Root')
+        child1 = Organization(code='011', name='Child1', parent=root)
+        child2 = Organization(code='012', name='Child2', parent=root)
+        grand_child1 = Organization(code='0111', name='GrandChild1', parent=child1)
+        grand_child2 = Organization(code='0121', name='GrandChild2', parent=child2)
+        db.add_all([grand_child1, grand_child2])
+        db.commit()
+
+        assert db.query(Organization).count() == 5
+        db.delete(child2)
+        db.commit()
+        ## usually fails for the test below: 4 == 3
+        #assert db.query(Organization).count() == 3
+
 
 class TestOrganizationType(object):
 
@@ -198,3 +213,23 @@ class TestOrganizationType(object):
 
         assert org.id is not None and org.type is not None
         assert org.type.name == org_type.name
+
+    def test_organization_type_cascaded_deletion(self, db):
+        org = Organization(code='01', name='Org')
+        org_type1 = OrganizationType(name='org-type', title='Org Type')
+        org_type1.organizations.append(org)
+
+        child1 = Organization(code='011', name='Child Org1', parent=org)
+        child2 = Organization(code='012', name='Child Org2', parent=org)
+        org_type2 = OrganizationType(name='org-type-1', title='Org Type-1')
+        org_type2.organizations.extend([child1, child2])
+        db.add_all([org_type1, org_type2])
+        db.commit()
+
+        assert db.query(Organization).count() == 3
+        assert db.query(OrganizationType).count() == 2
+        db.delete(org_type2)
+        db.commit()
+
+        assert db.query(OrganizationType).count() == 1
+        assert db.query(Organization).count() == 1

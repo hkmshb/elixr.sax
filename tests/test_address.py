@@ -130,6 +130,24 @@ class TestState(BaseTest):
            and state.country.uuid == state.country_id \
            and state in state.country.states
 
+    def test_country_delete_cascades_down(self, db):
+        country = Country(code='NG', name='Nigeria')
+        country2 = Country(code='GH', name='Ghana')
+        State(code='KD', name='Kaduna', country=country)
+        State(code='KN', name='Kano', country=country)
+
+        db.add_all([country, country2])
+        db.commit()
+
+        assert db.query(Country).count() == 2
+        assert db.query(State).count() == 2
+
+        db.delete(country)
+        db.commit()
+
+        assert db.query(Country).count() == 1
+        assert db.query(State).count() == 0
+
 
 class TestAddress(BaseTest):
 
@@ -171,6 +189,27 @@ class TestAddress(BaseTest):
         country = address.state.country
         assert country.name == addr_dict.get('country')
         assert country.code == addr_dict.get('country_code')
+
+    def test_state_delete_cascades_down_to_setr_null(self, db):
+        country = Country(code='NG', name='Nigeria')
+        state = State(code='KD', name='Kaduna', country=country)
+        Address(raw='Street, Town', street='Street', town='Town', state=state)
+        Address(raw='Street2, Town2', street='Street2', town='Town2', state=state)
+        db.add(country)
+        db.commit()
+
+        assert db.query(Country).count() == 1
+        assert db.query(State).count() == 1
+        assert db.query(Address).count() == 2
+        assert db.query(Address).filter(Address.state_id.is_(None)).count() == 0
+
+        db.delete(state)
+        db.commit()
+
+        assert db.query(Country).count() == 1
+        assert db.query(State).count() == 0
+        assert db.query(Address).count() == 2
+        assert db.query(Address).filter(Address.state_id.is_(None)).count() == 2
 
 
 class TestAddressMixinMock(BaseTest):

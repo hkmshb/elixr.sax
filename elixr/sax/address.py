@@ -19,7 +19,8 @@ class Country(meta.Model, IdsMixin):
 
     code = Column(String(3), nullable=False)
     name = Column(String(50), nullable=False, unique=True)
-    states = relationship("State", back_populates="country")
+    states = relationship("State", back_populates="country",
+                          cascade='all, delete')
 
     def __str__(self):
         return self.name

@@ -136,7 +136,8 @@ class OrganizationType(meta.Model, IdsMixin, TimestampMixin):
     __tablename__ = 'organization_types'
     name = Column(String(30), nullable=False, unique=True)
     title = Column(String(30), nullable=False)
-    organizations = relationship('Organization', back_populates='type')
+    organizations = relationship('Organization', back_populates='type',
+                                 cascade='all, delete')
 
 
 class Organization(Party, CoordinatesMixin):
@@ -145,6 +146,12 @@ class Organization(Party, CoordinatesMixin):
     :hint: fncode (function code) can be used to indicate the organisation
     function implemented via an enum. e.g HQ, Branch, SalesOffice, ServicePoint
     etc. Its left open to accomodate any int based enum declaration.
+
+    :known issue: deleting a parent organization does not cascade delete to
+    child organizations; however setting `cascade='all, delete'` on backref
+    for the children relationship gets this working but breaks cascade delete
+    for organization type. So working organization type behaviour was settled
+    for.
     """
     __tablename__ = 'organizations'
     __mapper_args__ = {
@@ -158,7 +165,7 @@ class Organization(Party, CoordinatesMixin):
     description = Column(String(255))
     date_established = Column(Date)
     website_url = Column(String(150))
-    type_id = Column(types.UUID, ForeignKey("organization_types.uuid"), unique=True)
+    type_id = Column(types.UUID, ForeignKey("organization_types.uuid"))
     type = relationship("OrganizationType", back_populates="organizations")
     children = relationship("Organization", foreign_keys=[parent_id],
                             backref=backref("parent", remote_side=[uuid]))
