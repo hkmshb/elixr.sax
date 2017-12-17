@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from elixr.base import generate_random_digest
 
-from ..mixins import IdsMixin
+from ..mixins import IdsMixin, EntityWithDeletedMixin
 from .. import meta, types
 
 
@@ -39,7 +39,7 @@ auth_users_roles_table = Table(
 )
 
 
-class User(meta.Model, IdsMixin):
+class User(meta.Model, EntityWithDeletedMixin):
     """A model for storing User data.
     """
     __tablename__ = 'auth_users'
@@ -103,7 +103,7 @@ class User(meta.Model, IdsMixin):
             self.password = _hash_password(raw_password)
 
 
-class Role(meta.Model, IdsMixin):
+class Role(meta.Model, EntityWithDeletedMixin):
     """A model for storing Role data.
     """
     __tablename__ = 'auth_roles'

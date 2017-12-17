@@ -6,8 +6,8 @@ from sqlalchemy import Column, Boolean, Date, ForeignKey, Integer, String, Table
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship, backref
 
+from .mixins import EntityMixin, EntityWithDeletedMixin
 from .address import AddressMixin, CoordinatesMixin
-from .mixins import IdsMixin, TimestampMixin
 from . import meta, types
 
 
@@ -48,7 +48,7 @@ parties_contact_details_table = Table(
 )
 
 
-class ContactDetail(meta.Model, IdsMixin, TimestampMixin):
+class ContactDetail(meta.Model, EntityWithDeletedMixin):
     """A Single-Table Inheritance model for storing all forms of contact details.
     """
     __tablename__ = 'contact_details'
@@ -57,7 +57,6 @@ class ContactDetail(meta.Model, IdsMixin, TimestampMixin):
     subtype = Column(types.Choice(ContactType), nullable=False)
     is_confirmed = Column(Boolean(create_constraint=False), default=False)
     is_preferred = Column(Boolean(create_constraint=False), default=False)
-    deleted = Column(Boolean(create_constraint=False), default=False)
     __mapper_args__ = {
         'polymorphic_identity': 'contact_details',
         'polymorphic_on': subtype
@@ -83,7 +82,7 @@ class PhoneContact(ContactDetail):
     extension = Column(String(10))
 
 
-class Party(meta.Model, IdsMixin, TimestampMixin, AddressMixin):
+class Party(meta.Model, EntityWithDeletedMixin, AddressMixin):
     """A Joined Table inheritance model for storing the named parts of a Party
     derived inheritance model relationship.
     """
@@ -91,7 +90,6 @@ class Party(meta.Model, IdsMixin, TimestampMixin, AddressMixin):
 
     name = Column(String(50), nullable=False, unique=True)
     subtype = Column(types.Choice(PartyType), nullable=False)
-    deleted = Column(Boolean(create_constraint=False), default=False)
     contacts = relationship("ContactDetail", lazy="joined",
                             secondary="parties_contact_details")
 
@@ -130,7 +128,7 @@ class Person(Party):
         self.name = value
 
 
-class OrganizationType(meta.Model, IdsMixin, TimestampMixin):
+class OrganizationType(meta.Model, EntityWithDeletedMixin):
     """A model to define the classifications for Organizations.
     """
     __tablename__ = 'organization_types'

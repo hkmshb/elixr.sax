@@ -7,12 +7,12 @@ from sqlalchemy import Column, Float, ForeignKey, Integer, String, \
         UniqueConstraint
 from sqlalchemy.orm import relationship
 from elixr.base import AttrDict, Coordinates
-from .mixins import IdsMixin
+from .mixins import EntityWithDeletedMixin
 from . import meta, types
 
 
 
-class Country(meta.Model, IdsMixin):
+class Country(meta.Model, EntityWithDeletedMixin):
     """A model for storing Country data.
     """
     __tablename__ = 'countries'
@@ -26,7 +26,7 @@ class Country(meta.Model, IdsMixin):
         return self.name
 
 
-class State(meta.Model, IdsMixin):
+class State(meta.Model, EntityWithDeletedMixin):
     """A model for storing State data.
     """
     __tablename__ = 'states'
@@ -138,7 +138,7 @@ class LocatableMixin(AddressMixin, CoordinatesMixin):
     pass
 
 
-class Address(meta.Model, IdsMixin, CoordinatesMixin):
+class Address(meta.Model, EntityWithDeletedMixin, CoordinatesMixin):
     """A model for storing Address data.
     """
     __tablename__ = 'addresses'

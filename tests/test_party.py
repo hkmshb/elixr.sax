@@ -44,6 +44,18 @@ class TestContactDetail(TestBase):
            and contact.is_preferred == False \
            and contact.subtype == ContactType.PHONE
 
+    def test_contact_detail_get(self, db):
+        contact1 = PhoneContact(number='08020001000', extension='1')
+        contact2 = PhoneContact(number='08020002000', extension='2')
+        db.add_all([contact1, contact2])
+        db.commit()
+
+        found = PhoneContact.get(db, contact1.id)
+        assert found and found.uuid == contact1.uuid
+
+        found2 = PhoneContact.get(db, contact2.uuid)
+        assert found2 and found2.id == contact2.id
+
 
 class TestPerson(TestBase):
     def _get_person(self):
@@ -67,7 +79,7 @@ class TestPerson(TestBase):
         assert party.uuid == person.uuid
 
     def test_contacts_can_be_committed(self, db):
-        self._clear_tables(db)
+        # self._clear_tables(db)
         person = self._get_person()
         person.contacts.append(EmailContact(address='john@doe.ea'))
         person.contacts.append(PhoneContact(number='08020001000'))
@@ -78,6 +90,21 @@ class TestPerson(TestBase):
            and len(person.contacts) == 2 \
            and person.contacts[0].id != None \
            and person.contacts[1].id != None
+
+    def test_person_get(self, db):
+        person1 = self._get_person()
+        person2 = Person(title='Miss', name='Jane', last_name='Doe',
+                         gender=Gender.FEMALE, marital_status=MaritalStatus.SINGLE,
+                         date_born=datetime.today().date())
+        db.add_all([person1, person2])
+        db.commit()
+        assert db.query(Person).count() == 2
+
+        found = Person.get(db, person1.id)
+        assert found and found.uuid == person1.uuid
+
+        found2 = Person.get(db, person2.uuid)
+        assert found2 and found2.id == person2.id
 
 
 class TestOrganisation(TestBase):
