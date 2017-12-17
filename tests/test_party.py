@@ -106,6 +106,13 @@ class TestPerson(TestBase):
         found2 = Person.get(db, person2.uuid)
         assert found2 and found2.id == person2.id
 
+    def test_name_unique_to_party_type(self, db):
+        person = self._get_person()
+        company = Organization(code='01', name=person.name)
+        db.add_all([person, company])
+        db.commit()
+        assert db.query(Party).count() == 2
+
 
 class TestOrganisation(TestBase):
     def test_organisation_has_children_property(self, db):

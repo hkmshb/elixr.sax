@@ -2,7 +2,9 @@
 structures within an application.
 """
 import enum
-from sqlalchemy import Column, Boolean, Date, ForeignKey, Integer, String, Table
+from sqlalchemy import (
+    Column, Boolean, Date, ForeignKey, Integer, String, Table, UniqueConstraint
+)
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship, backref
 
@@ -87,16 +89,18 @@ class Party(meta.Model, EntityWithDeletedMixin, AddressMixin):
     derived inheritance model relationship.
     """
     __tablename__ = 'parties'
+    __table_args__ = (
+        UniqueConstraint('name', 'subtype', name='uq_parties_name_subtype'),
+    )
+    __mapper_args__ = {
+        'polymorphic_identity': 'parties',
+        'polymorphic_on': 'subtype'
+    }
 
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     subtype = Column(types.Choice(PartyType), nullable=False)
     contacts = relationship("ContactDetail", lazy="joined",
                             secondary="parties_contact_details")
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'parties',
-        'polymorphic_on': subtype
-    }
 
 
 class Person(Party):
