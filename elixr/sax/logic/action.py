@@ -149,3 +149,55 @@ def organization_type_show(dbsession, data_dict):
     """Returns the details of an organization type.
     """
     return _entity_show(dbsession, party.OrganizationType, data_dict)
+
+
+## +++++++++++++
+## ENTITY UPDATE
+
+def _entity_update(dbsession, show_func, schema, data_dict):
+    """Updates and returns an existing entity of type specified by model.
+    """
+    # record to update must exist
+    assert 'id' in data_dict
+    found = show_func(dbsession, data_dict)
+
+    # validate entity
+    data, errors = _val.validate(schema, data_dict)
+    if errors:
+        raise logic.ValidationError(errors)
+
+    # perform entity update
+    try:
+        for field_name, value in data.items():
+            setattr(found, field_name, value or None)
+
+        dbsession.flush()
+    except exc.IntegrityError as ex:
+        raise logic.ActionError(str(ex))
+
+    return found
+
+
+def country_update(dbsession, data_dict):
+    schema = schemas.default_country_schema()
+    return _entity_update(dbsession, country_show, schema, data_dict)
+
+
+def state_update(dbsession, data_dict):
+    schema = schemas.default_state_schema()
+    return _entity_update(dbsession, state_show, schema, data_dict)
+
+
+def address_update(dbsession, data_dict):
+    schema = schemas.default_address_schema()
+    return _entity_update(dbsession, address_show, schema, data_dict)
+
+
+def organization_type_update(dbsession, data_dict):
+    schema = schemas.default_organization_type_schema()
+    return _entity_update(dbsession, organization_type_show, schema, data_dict)
+
+
+def organization_update(dbsession, data_dict):
+    schema = schemas.default_organization_schema()
+    return _entity_update(dbsession, organization_show, schema, data_dict)

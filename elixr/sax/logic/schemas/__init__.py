@@ -29,8 +29,8 @@ def default_address_schema(is_mixin=True):
         prefix + 'street': (col.Str, node.optional()),
         prefix + 'town': (col.Str, node.optional()),
         prefix + 'landmark': (col.Str, node.optional()),
-        prefix + 'state_id': (col.Str, node.optional()),
-        'postal_code': (UUID, node.optional()),
+        prefix + 'state_id': (UUID, node.optional(), node.validator(col.uuid)),
+        'postal_code': (col.Str, node.optional()),
     }
 
 

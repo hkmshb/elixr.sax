@@ -174,3 +174,118 @@ class TestEntityShowAction(object):
         assert found and found.id and found.uuid
         assert found.code == '01' \
            and found.name == 'Org'
+
+
+class TestEntityUpdateAction(object):
+
+    def _get_country(self, db, commit=True):
+        entity = addr.Country(code='ng', name='Nigeria')
+        if commit:
+            db.add(entity)
+            db.commit()
+        return entity
+
+    def _get_state(self, db, country=None, commit=True):
+        if not country:
+            country = self._get_country(db, commit=False)
+
+        entity = addr.State(code='kn', name='Kano', country=country)
+        if commit:
+            db.add(entity)
+            db.commit()
+        return entity
+
+    def _get_organization_type(self, db, commit=True):
+        org_type = party.OrganizationType(name='org-type', title='Title')
+        if commit:
+            db.add(org_type)
+            db.commit()
+        return org_type
+
+    def _get_organization(self, db, type=None, commit=True):
+        if not type:
+            type = self._get_organization_type(db, False)
+
+        org = party.Organization(code='01', name='org', type=type)
+        if commit:
+            db.add(org)
+            db.commit()
+        return org
+
+    @pytest.mark.parametrize('field,value', [
+        ('code', 'gh'), ('name', 'Ghana'), 
+        ('code', 'sg'), ('name', 'Senegal') ])
+    def test_country_update_fails_wo_required_fields(self, db, field, value):
+        entity = self._get_country(db)
+        with pytest.raises(logic.ValidationError):
+            action.country_update(db, {'id': entity.uuid, field: value})
+
+    def test_country_update_passes_for_valid_fields(self, db):
+        entity = self._get_country(db)
+        code, name = (entity.code, entity.name)
+        rvalue = action.country_update(db, {
+            'id': entity.uuid, 'code': 'gh', 'name': 'Ghana'
+        })
+        assert rvalue and rvalue.id and rvalue.uuid
+        assert rvalue.code != code \
+           and rvalue.name != name
+
+    @pytest.mark.parametrize('field,value', [
+        ('code', 'so'), ('name', 'Sokoto'), ('country_id', 1) ])
+    def test_state_update_fails_wo_required_fields(self, db, field, value):
+        entity = self._get_state(db)
+        with pytest.raises(logic.ValidationError):
+            action.state_update(db, {'id': entity.uuid, field: value})
+
+    def test_state_update_passes_for_valid_fields(self, db):
+        entity = self._get_state(db)
+        code, name = (entity.code, entity.name)
+        rvalue = action.state_update(db, {
+            'id': entity.uuid, 'code': 'kd', 'name': 'Kaduna',
+            'country_id': str(entity.country.uuid)
+        })
+        assert rvalue and rvalue.id and rvalue.uuid
+        assert rvalue.code != code \
+           and rvalue.name != name
+
+    @pytest.mark.parametrize('field,value', [
+        ('name', 'org-type'), ('title', 'Org Title') ])
+    def test_organization_type_upate_fails_wo_required_fields(self, db, field, value):
+        org_type = self._get_organization_type(db)
+        with pytest.raises(logic.ValidationError):
+            action.organization_type_update(db, {'id': org_type.uuid, field: value})
+
+    def test_organization_type_update_passes_for_valid_fields(self, db):
+        org_type = self._get_organization_type(db)
+        name, title = (org_type.name, org_type.title)
+        rvalue = action.organization_type_update(db, {
+            'id': org_type.uuid, 'name': 'org-type-2', 'title': 'Org Title 2'
+        })
+        assert rvalue and rvalue.id and rvalue.uuid
+        assert rvalue.name != name \
+           and rvalue.title != title
+
+    @pytest.mark.parametrize('field,value', [
+        ('code', '01'), ('name', 'Organization') ])
+    def test_organization_update_fails_wo_required_fields(self, db, field, value):
+        org_type = self._get_organization_type(db, False)
+        org = self._get_organization(db, org_type, True)
+        with pytest.raises(logic.ValidationError):
+            action.organization_update(db, {'id': org.uuid, field: value})
+
+    # def test_organization_update_passes_for_valid_fields(self, db):
+    #     org_type = self._get_organization_type(db, False)
+    #     org = self._get_organization(db, org_type, True)
+    #     code, name = (org.code, org.name)
+        
+    #     org2 = party.Organization(code='91', name='Org91', type=org_type)
+    #     db.add(org2)
+    #     db.flush()
+
+    #     rvalue = action.organization_update(db, {
+    #         'is_root': True, 'id': org.uuid, 'code': '017', 'type_id': str(org_type.uuid),
+    #         'name': 'Organization-017', 'parent_id': str(org2.uuid)
+    #     })
+    #     assert rvalue and rvalue.id and rvalue.uuid
+    #     assert rvalue.code != code \
+    #        and rvalue.title != title
