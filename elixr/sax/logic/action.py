@@ -8,6 +8,59 @@ from . import schemas, validators as _val
 from .. import address as addr, party
 
 
+
+## ++++++++++
+## UTIL FUNCS
+
+def _perform_organization_type_persistence_precheck(dbsession, data_dict):
+    """Performs checks when `allow_multiroot=False` to ensure multiple root
+    organization types don't get created during a create or update operation.
+    """
+    # check needed only when creating a root organization type
+    is_root = to_bool(data_dict.get('is_root', False))
+    if is_root:
+        # check that no root organization type already exist
+        model = party.OrganizationType
+        try:
+            query = dbsession.query(model)
+            found = query.filter(model.is_root == True).one_or_none()
+        except orm.exc.MultipleResultsFound:
+            err_msg = ('Single root Organization type expected however '
+                       'multiple root types already defined')
+            raise logic.MultipleResultsError(err_msg)
+
+        if found:
+            err_msg = ('Single root Organization type expected and one '
+                       'already exist')
+            raise logic.MultipleResultsError(err_msg)
+
+
+def _perform_organization_persistence_precheck(context, data_dict):
+    """Performs checks when `allow_multiroot=False` to ensure multiple root
+    organizations don't get created during a create or update operation.
+    """
+    dbsession = context['dbsession']
+    org_type = context['type']
+    model = party.Organization
+
+    # extensive checks required only if not to allow_multiroot
+    allow_multiroot = context.get('allow_multiroot', True)
+    if not allow_multiroot and org_type.is_root:
+        # check that no root organization already exist
+        try:
+            query = dbsession.query(model)
+            found = query.filter(model.parent_id.is_(None)).one_or_none()
+        except orm.exc.MultipleResultsFound:
+            err_msg = ('Single root Organization expected however multiple '
+                       'roots already deifned.')
+            raise logic.MultipleResultsError(err_msg)
+
+        if found:
+            err_msg = ('Single Organization type expedted and one already '
+                       'exist')
+            raise logic.MultipleResultsError(err_msg)
+
+
 ## ++++++++++++++
 ## ENTITY CREATION
 
@@ -60,32 +113,13 @@ def person_create(dbsession, data_dict):
     return _entity_create(dbsession, party.Person, schema, data_dict)
 
 
-def organization_type_create(context, data_dict):
+def organization_type_create(dbsession, data_dict):
     """Create and return an organization type.
     """
-    assert 'dbsession' in context
-    model = party.OrganizationType
-    dbsession = context['dbsession']
-
     # extensive checks required only if not to allow_multiroot
-    allow_multiroot = context.get('allow_multiroot', True)
-    if not allow_multiroot:
-        is_root = to_bool(data_dict.get('is_root', False))
-        if is_root:
-            # check that no root organization type already exist
-            try:
-                query = dbsession.query(model)
-                found = query.filter(model.is_root == True).one_or_none()
-            except exc.MultipleResultsError:
-                err_msg = ('Single root Organization type expected however '
-                           'multiple root types already defined')
-                raise logic.MultipleResultsError(err_msg)
+    _perform_organization_type_persistence_precheck(dbsession, data_dict)
 
-            if found:
-                err_msg = ('Single root Organization type expected and one '
-                           'already exist')
-                raise logic.MultipleResultsError(err_msg)
-
+    model = party.OrganizationType
     schema = schemas.default_organization_type_schema()
     return _entity_create(dbsession, model, schema, data_dict)
 
@@ -98,30 +132,16 @@ def organization_create(context, data_dict):
     dbsession = context['dbsession']
     model = party.Organization
 
-    # retrieve org type to know if root or non-root to be created 
+    # retrieve org type to know if root or non-root to be created
     type_id = data_dict['type_id']
     if not type_id:
         raise logic.ValidationError({'type_id': 'Required'})
 
-    org_type = organization_type_show(dbsession, {'id': type_id})
-
     # extensive checks required only if not to allow_multiroot
-    allow_multiroot = context.get('allow_multiroot', True)
-    if not allow_multiroot and org_type.is_root:
-        # check that no root organization already exist
-        try:
-            query = dbsession.query(model)
-            found = query.filter(model.parent_id.is_(None)).one_or_none()
-        except exc.MultipleResultsError:
-            err_msg = ('Single root Organization expected however multiple '
-                       'roots already deifned.')
-            raise logic.MultipleResultsError(err_msg)
+    org_type = organization_type_show(dbsession, {'id': type_id})
+    context['type'] = org_type
 
-        if found:
-            err_msg = ('Single Organization type expedted and one already '
-                       'exist')
-            raise logic.MultipleResultsError(err_msg)
-
+    _perform_organization_persistence_precheck(context, data_dict)
     schema = schemas.default_organization_schema(org_type.is_root)
     return _entity_create(dbsession, model, schema, data_dict)
 
@@ -218,10 +238,31 @@ def address_update(dbsession, data_dict):
 
 
 def organization_type_update(dbsession, data_dict):
+    """Update and return an organization type.
+    """
+    # extensive checks required only if not to allow_multiroot
+    _perform_organization_type_persistence_precheck(dbsession, data_dict)
+
     schema = schemas.default_organization_type_schema()
     return _entity_update(dbsession, organization_type_show, schema, data_dict)
 
 
-def organization_update(dbsession, data_dict):
-    schema = schemas.default_organization_schema()
+def organization_update(context, data_dict):
+    """Update and return an organization.
+    """
+    assert 'dbsession' in context
+    assert 'type_id' in data_dict
+    dbsession = context['dbsession']
+
+    # retrieve org type to know if root or non-root to be created
+    type_id = data_dict['type_id']
+    if not type_id:
+        raise logic.ValidationError({'type_id': 'Required'})
+
+    # extensive checks required only if not to allow_multiroot
+    org_type = organization_type_show(dbsession, {'id': type_id})
+    context['type'] = org_type
+
+    _perform_organization_persistence_precheck(context, data_dict)
+    schema = schemas.default_organization_schema(org_type.is_root)
     return _entity_update(dbsession, organization_show, schema, data_dict)

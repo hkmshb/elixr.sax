@@ -10,6 +10,11 @@ class TestBase(object):
     def _get_country_dict(self, code='NG', name='Nigeria'):
         return {'code': code, 'name': name}
 
+    def _get_state_dict(self, code='KN', name='Kano', country_id=None):
+        return {
+            'code': code, 'name': name, 'country_id': country_id
+        }
+
     def _get_address_dict(self, is_mixin=True):
         prefix = 'addr_' if is_mixin else ''
         return {
@@ -36,6 +41,26 @@ class TestBase(object):
             'code': code, 'name': name, 'type_id': type_id, 'parent_id': parent_id
         }
 
+    def _get_country(self, db, code='NG', name='Nigeria', commit=True):
+        data_dict = self._get_country_dict(code, name)
+        country = addr.Country(**data_dict)
+        if commit:
+            db.add(country)
+            db.commit()
+        return country
+
+    def _get_state(self, db, code='KN', name='Kano', country_id=None, commit=True):
+        data_dict = self._get_state_dict(code, name, country_id)
+        if country_id is None:
+            country = self._get_country(db)
+            data_dict['country_id'] = str(country.uuid)
+
+        state = addr.State(**data_dict)
+        if commit:
+            db.add(state)
+            db.commit()
+        return state
+
     def _get_organization_type(self, db, name='org-type', title='Org Type',
                                is_root=False, commit=True):
         data_dict = self._get_organization_type_dict(name, title, is_root)
@@ -57,7 +82,6 @@ class TestBase(object):
             db.add(org)
             db.commit()
         return org
-
 
 
 class TestEntityCreateAction(TestBase):
@@ -123,7 +147,7 @@ class TestEntityCreateAction(TestBase):
 
     def test_organization_type_creation_passes_for_valid_fields(self, db):
         data_dict = self._get_organization_type_dict()
-        org_type = action.organization_type_create({'dbsession': db}, data_dict)
+        org_type = action.organization_type_create(db, data_dict)
         assert org_type and org_type.id and org_type.uuid
         assert org_type.name == 'org-type' \
            and org_type.title == 'Org Type'
@@ -133,17 +157,7 @@ class TestEntityCreateAction(TestBase):
         db.add(party.OrganizationType(**self._get_organization_type_dict(is_root=True)))
         with pytest.raises(logic.MultipleResultsError):
             data_dict = self._get_organization_type_dict(name='org-type2', is_root=True)
-            context = {'dbsession': db, 'allow_multiroot': False}
-            action.organization_type_create(context, data_dict)
-
-    def test_organization_type_creation_passes_for_multi_isroot_record_when_allow_multiroot(self, db):
-        # existing `is_root` org_type required
-        db.add(party.OrganizationType(**self._get_organization_type_dict(is_root=True)))
-        data_dict = self._get_organization_type_dict(name='org-type2', is_root=True)
-        context = {'dbsession': db, 'allow_multiroot': True}
-        org_type = action.organization_type_create(context, data_dict)
-        assert org_type and org_type.id and org_type.uuid
-        assert db.query(party.OrganizationType).count() == 2
+            action.organization_type_create(db, data_dict)
 
     def test_organization_type_creation_passes_for_mutliple_non_isroot(self, db):
         data_dict = self._get_organization_type_dict(name='org-type-1', is_root=False)
@@ -151,7 +165,7 @@ class TestEntityCreateAction(TestBase):
         db.commit()
 
         data_dict2 = self._get_organization_type_dict(name='org-type-2')
-        action.organization_type_create({'dbsession': db}, data_dict2)
+        action.organization_type_create(db, data_dict2)
         assert db.query(party.OrganizationType).count() == 2
 
     def test_organization_creation_fails_without_type(self, db):
@@ -272,41 +286,7 @@ class TestEntityShowAction(TestBase):
            and found.name == 'Organization'
 
 
-class TestEntityUpdateAction(object):
-
-    def _get_country(self, db, commit=True):
-        entity = addr.Country(code='ng', name='Nigeria')
-        if commit:
-            db.add(entity)
-            db.commit()
-        return entity
-
-    def _get_state(self, db, country=None, commit=True):
-        if not country:
-            country = self._get_country(db, commit=False)
-
-        entity = addr.State(code='kn', name='Kano', country=country)
-        if commit:
-            db.add(entity)
-            db.commit()
-        return entity
-
-    def _get_organization_type(self, db, commit=True):
-        org_type = party.OrganizationType(name='org-type', title='Title')
-        if commit:
-            db.add(org_type)
-            db.commit()
-        return org_type
-
-    def _get_organization(self, db, type=None, commit=True):
-        if not type:
-            type = self._get_organization_type(db, False)
-
-        org = party.Organization(code='01', name='org', type=type)
-        if commit:
-            db.add(org)
-            db.commit()
-        return org
+class TestEntityUpdateAction(TestBase):
 
     @pytest.mark.parametrize('field,value', [
         ('code', 'gh'), ('name', 'Ghana'), 
@@ -361,27 +341,28 @@ class TestEntityUpdateAction(object):
         assert rvalue.name != name \
            and rvalue.title != title
 
+    def test_organization_type_update_to_isroot_for_non_multiroot_fail(self, db):
+        # create existing is_root organization type
+        org_type1 = self._get_organization_type(db, is_root=True)
+        data_dict = self._get_organization_type_dict(name='org-type-2', title='Org Type 2',
+                                                     is_root=False)
+        org_type2 = party.OrganizationType(**data_dict)
+        db.add(org_type2)
+        db.commit()
+
+        assert db.query(party.OrganizationType).count() == 2
+
+        with pytest.raises(logic.MultipleResultsError):
+            data_dict.update({'id': org_type2.uuid, 'is_root': True})
+            action.organization_type_update(db, data_dict)
+
     @pytest.mark.parametrize('field,value', [
         ('code', '01'), ('name', 'Organization') ])
     def test_organization_update_fails_wo_required_fields(self, db, field, value):
-        org_type = self._get_organization_type(db, False)
-        org = self._get_organization(db, org_type, True)
+        org_type = self._get_organization_type(db, True)
+        org = self._get_organization(db, type_id=str(org_type.uuid), commit=True)
         with pytest.raises(logic.ValidationError):
-            action.organization_update(db, {'id': org.uuid, field: value})
-
-    # def test_organization_update_passes_for_valid_fields(self, db):
-    #     org_type = self._get_organization_type(db, False)
-    #     org = self._get_organization(db, org_type, True)
-    #     code, name = (org.code, org.name)
-        
-    #     org2 = party.Organization(code='91', name='Org91', type=org_type)
-    #     db.add(org2)
-    #     db.flush()
-
-    #     rvalue = action.organization_update(db, {
-    #         'is_root': True, 'id': org.uuid, 'code': '017', 'type_id': str(org_type.uuid),
-    #         'name': 'Organization-017', 'parent_id': str(org2.uuid)
-    #     })
-    #     assert rvalue and rvalue.id and rvalue.uuid
-    #     assert rvalue.code != code \
-    #        and rvalue.title != title
+            action.organization_update(
+                {'dbsession': db},
+                {'id': org.uuid, 'type_id': None, field: value}
+            )
