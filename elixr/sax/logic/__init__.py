@@ -22,9 +22,9 @@ class NotFoundError(ActionError):
     pass
 
 
-class MultipleOrganizationError(ActionError):
-    """Exception raised by logic functions when multiple Organizations are
-    found.
+class MultipleResultsError(ActionError):
+    """Exception raised by logic functions when multiple records are found
+    when only one is expected.
     """
     pass
 

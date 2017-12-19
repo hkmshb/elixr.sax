@@ -60,33 +60,70 @@ def person_create(dbsession, data_dict):
     return _entity_create(dbsession, party.Person, schema, data_dict)
 
 
-def organization_type_create(dbsession, data_dict):
+def organization_type_create(context, data_dict):
     """Create and return an organization type.
     """
+    assert 'dbsession' in context
+    model = party.OrganizationType
+    dbsession = context['dbsession']
+
+    # extensive checks required only if not to allow_multiroot
+    allow_multiroot = context.get('allow_multiroot', True)
+    if not allow_multiroot:
+        is_root = to_bool(data_dict.get('is_root', False))
+        if is_root:
+            # check that no root organization type already exist
+            try:
+                query = dbsession.query(model)
+                found = query.filter(model.is_root == True).one_or_none()
+            except exc.MultipleResultsError:
+                err_msg = ('Single root Organization type expected however '
+                           'multiple root types already defined')
+                raise logic.MultipleResultsError(err_msg)
+
+            if found:
+                err_msg = ('Single root Organization type expected and one '
+                           'already exist')
+                raise logic.MultipleResultsError(err_msg)
+
     schema = schemas.default_organization_type_schema()
-    return _entity_create(dbsession, party.OrganizationType,
-                          schema, data_dict)
+    return _entity_create(dbsession, model, schema, data_dict)
 
 
-def organization_create(dbsession, data_dict):
+def organization_create(context, data_dict):
     """Create and return an organization.
     """
-    is_root = to_bool(data_dict.pop('is_root', False))
-    multi_root = to_bool(data_dict.pop('multi_root', False))
-    if is_root and not multi_root:
-        # ensure no other root organization exists
-        try:
-            show_dict = {'is_root': is_root, 'multi_root': multi_root}
-            org = organization_show(dbsession, show_dict)
-            if org is not None:
-                err_msg = 'Root organization already exist'
-                raise logic.MultipleOrganizationError(err_msg)
-        except logic.NotFoundError:
-            # good thing org doesn't already exists
-            pass
+    assert 'dbsession' in context
+    assert 'type_id' in data_dict
+    dbsession = context['dbsession']
+    model = party.Organization
 
-    schema = schemas.default_organization_schema(is_root)
-    return _entity_create(dbsession, party.Organization, schema, data_dict)
+    # retrieve org type to know if root or non-root to be created 
+    type_id = data_dict['type_id']
+    if not type_id:
+        raise logic.ValidationError({'type_id': 'Required'})
+
+    org_type = organization_type_show(dbsession, {'id': type_id})
+
+    # extensive checks required only if not to allow_multiroot
+    allow_multiroot = context.get('allow_multiroot', True)
+    if not allow_multiroot and org_type.is_root:
+        # check that no root organization already exist
+        try:
+            query = dbsession.query(model)
+            found = query.filter(model.parent_id.is_(None)).one_or_none()
+        except exc.MultipleResultsError:
+            err_msg = ('Single root Organization expected however multiple '
+                       'roots already deifned.')
+            raise logic.MultipleResultsError(err_msg)
+
+        if found:
+            err_msg = ('Single Organization type expedted and one already '
+                       'exist')
+            raise logic.MultipleResultsError(err_msg)
+
+    schema = schemas.default_organization_schema(org_type.is_root)
+    return _entity_create(dbsession, model, schema, data_dict)
 
 
 ## ++++++++++++++++
@@ -129,20 +166,7 @@ def person_show(dbsession, data_dict):
 def organization_show(dbsession, data_dict):
     """Returns the details of an organization.
     """
-    model = party.Organization
-    multi_root = to_bool(data_dict.get('multi_root', False))
-    if 'id' not in data_dict:
-        if multi_root:
-            err_msg = 'Id of Organization to show is required.'
-            raise logic.ActionError(err_msg)
-
-        try:
-            query = dbsession.query(model)
-            found = query.filter(model.parent_id.is_(None)).one_or_none()
-            return found
-        except orm.exc.MutipleResultsFound:
-            raise logic.MultipleOrganizationError()
-    return _entity_show(dbsession, model, data_dict)
+    return _entity_show(dbsession, party.Organization, data_dict)
 
 
 def organization_type_show(dbsession, data_dict):

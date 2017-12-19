@@ -29,7 +29,7 @@ def default_address_schema(is_mixin=True):
         prefix + 'street': (col.Str, node.optional()),
         prefix + 'town': (col.Str, node.optional()),
         prefix + 'landmark': (col.Str, node.optional()),
-        prefix + 'state_id': (UUID, node.optional(), node.validator(col.uuid)),
+        prefix + 'state_id': (UUID, node.optional()),
         'postal_code': (col.Str, node.optional()),
     }
 
@@ -68,8 +68,8 @@ def default_person_schema():
         'gender': (ENUM(Gender), node.optional()),
         'date_born': (col.Date, node.optional()),
         'marital_status': (ENUM(MaritalStatus), node.optional()),
-        'state_origin_id': (UUID, node.optional(), node.validator(col.uuid)),
-        'nationality_id': (UUID, node.optional(), node.validator(col.uuid))
+        'state_origin_id': (UUID, node.optional()),
+        'nationality_id': (UUID, node.optional())
     }
     schema.update(_default_party_schema())
     return schema
@@ -78,7 +78,8 @@ def default_person_schema():
 def default_organization_type_schema():
     return {
         'name': (col.Str,),
-        'title': (col.Str,)
+        'title': (col.Str,),
+        'is_root': (col.Bool, node.optional()),
     }
 
 
@@ -87,14 +88,13 @@ def default_organization_schema(for_root=False):
         'code': (col.Str,),
         'short_name': (col.Str, node.optional()),
         'description': (col.Str, node.optional()),
+        'type_id': (UUID,),
+        'parent_id': (UUID,),
         'date_established': (col.Date, node.optional()),
         'website_url': (col.Str, node.optional(), node.validator(col.url)),
-        'parent_id': (UUID, node.optional(), node.validator(col.uuid)),
-        'type_id': (UUID, node.optional(), node.validator(col.uuid))
     }
-    if not for_root:
-        schema['parent_id'] = (UUID, node.validator(col.uuid))
-        schema['type_id'] = (UUID, node.validator(col.uuid))
+    if for_root:
+        del schema['parent_id']
 
     schema.update(_default_party_schema())
     schema.update(coordinate_mixin_schema())
