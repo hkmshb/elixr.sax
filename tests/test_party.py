@@ -15,6 +15,13 @@ class TestBase(object):
     def _clear_tables(self, db, *table_names):
         utils.clear_tables(db, *table_names)
 
+    def _get_organization_type(self, db, name='org-type', title='Org Type',
+                               is_root=False, commit=True):
+        org_type = OrganizationType(name=name, title=title, is_root=is_root)
+        if commit:
+            db.add(org_type)
+            db.commit()
+        return org_type
 
 class TestContactDetail(TestBase):
     def test_only_contact_details_table_created(self):
@@ -58,7 +65,7 @@ class TestContactDetail(TestBase):
 
 
 class TestPerson(TestBase):
-    def _get_person(self):
+    def _get_person_dict(self):
         return Person(
             title='Mr', name='John', last_name='Doe',
             gender=Gender.MALE, marital_status=MaritalStatus.SINGLE,
@@ -66,7 +73,7 @@ class TestPerson(TestBase):
         )
 
     def test_committed_person_has_party_entry(self, db):
-        person = self._get_person()
+        person = self._get_person_dict()
         db.add(person)
         db.commit()
         assert person and person.id != None \
@@ -80,7 +87,7 @@ class TestPerson(TestBase):
 
     def test_contacts_can_be_committed(self, db):
         # self._clear_tables(db)
-        person = self._get_person()
+        person = self._get_person_dict()
         person.contacts.append(EmailContact(address='john@doe.ea'))
         person.contacts.append(PhoneContact(number='08020001000'))
         db.add(person)
@@ -92,7 +99,7 @@ class TestPerson(TestBase):
            and person.contacts[1].id != None
 
     def test_person_get(self, db):
-        person1 = self._get_person()
+        person1 = self._get_person_dict()
         person2 = Person(title='Miss', name='Jane', last_name='Doe',
                          gender=Gender.FEMALE, marital_status=MaritalStatus.SINGLE,
                          date_born=datetime.today().date())
@@ -107,23 +114,25 @@ class TestPerson(TestBase):
         assert found2 and found2.id == person2.id
 
     def test_name_unique_to_party_type(self, db):
-        person = self._get_person()
-        company = Organization(code='01', name=person.name)
+        person = self._get_person_dict()
+        org_type = self._get_organization_type(db)
+        company = Organization(code='01', name=person.name, type=org_type)
         db.add_all([person, company])
         db.commit()
         assert db.query(Party).count() == 2
 
 
-class TestOrganisation(TestBase):
-    def test_organisation_has_children_property(self, db):
+class TestOrganization(TestBase):
+    def test_organization_has_children_property(self, db):
         org = Organization(name='Hazeltek', code='01')
         assert org.children != None \
            and len(org.children) == 0
 
     def test_organization_can_ref_children(self, db):
-        root = Organization(name='Hazeltek', code='01')
-        child1 = Organization(name='Hazeltek Media', code='0101', parent=root)
-        child2 = Organization(name='Hazeltek Beverages', code='0102', parent=root)
+        org_type = self._get_organization_type(db)
+        root = Organization(name='Hazeltek', code='01', type=org_type)
+        child1 = Organization(name='Hazeltek Media', code='0101', parent=root, type=org_type)
+        child2 = Organization(name='Hazeltek Beverages', code='0102', parent=root, type=org_type)
         db.add(root)
         db.commit()
         assert root.id is not None \
@@ -134,9 +143,10 @@ class TestOrganisation(TestBase):
         assert child1.parent_id == root.uuid
 
     def test_fails_for_cyclic_relationship(self, db):
-        self._clear_tables(db)
-        root = Organization(name='Hazeltek', code='01')
-        child1 = Organization(name='Hazeltek Media', code='0101', parent=root)
+        # self._clear_tables(db)
+        org_type = self._get_organization_type(db)
+        root = Organization(name='Hazeltek', code='01', type=org_type)
+        child1 = Organization(name='Hazeltek Media', code='0101', parent=root, type=org_type)
         with pytest.raises(exc.CircularDependencyError):
             root.children.append(root)
             db.add(root)
@@ -144,28 +154,31 @@ class TestOrganisation(TestBase):
         db.rollback()
 
     def test_commit_fails_for_missing_code(self, db):
-        self._clear_tables(db)
-        org = Organization(name='Hazeltek')
+        # self._clear_tables(db)
+        org_type = self._get_organization_type(db)
+        org = Organization(name='Hazeltek', type=org_type)
         with pytest.raises(exc.IntegrityError):
             db.add(org)
             db.commit()
         db.rollback()
 
     def test_commit_fails_for_non_unique_code(self, db):
-        self._clear_tables(db)
-        db.add(Organization(name='Hazeltek', code="01"))
+        # self._clear_tables(db)
+        org_type = self._get_organization_type(db)
+        db.add(Organization(name='Hazeltek', code="01", type=org_type))
         db.commit()
         with pytest.raises(exc.IntegrityError):
-            db.add(Organization(name="Hazel", code="01"))
+            db.add(Organization(name="Hazel", code="01", type=org_type))
             db.commit()
         db.rollback()
 
-    def test_organization_cascaded_deletino(self, db):
-        root = Organization(code='01', name='Root')
-        child1 = Organization(code='011', name='Child1', parent=root)
-        child2 = Organization(code='012', name='Child2', parent=root)
-        grand_child1 = Organization(code='0111', name='GrandChild1', parent=child1)
-        grand_child2 = Organization(code='0121', name='GrandChild2', parent=child2)
+    def test_organization_cascaded_deletion(self, db):
+        org_type = self._get_organization_type(db)
+        root = Organization(code='01', name='Root', type=org_type)
+        child1 = Organization(code='011', name='Child1', parent=root, type=org_type)
+        child2 = Organization(code='012', name='Child2', parent=root, type=org_type)
+        grand_child1 = Organization(code='0111', name='GrandChild1', parent=child1, type=org_type)
+        grand_child2 = Organization(code='0121', name='GrandChild2', parent=child2, type=org_type)
         db.add_all([grand_child1, grand_child2])
         db.commit()
 
@@ -192,17 +205,6 @@ class TestOrganizationType(object):
             db.add(OrganizationType(name='root', title='Root'))
             db.commit()
         db.rollback()
-
-    def test_can_save_and_get_organization(self, db):
-        org = Organization(name='Org', code='org')
-        db.add(org)
-        db.commit()
-
-        assert org and org.id is not None \
-           and org.uuid is not None
-
-        orgs = db.query(Organization).all()
-        assert orgs and len(orgs) == 1
 
     def test_organization_cannot_belong_to_multiple_organization_types(self, db):
         org = Organization(name='Org', code='org')

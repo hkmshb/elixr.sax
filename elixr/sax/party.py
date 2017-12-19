@@ -138,6 +138,7 @@ class OrganizationType(meta.Model, EntityWithDeletedMixin):
     __tablename__ = 'organization_types'
     name = Column(String(30), nullable=False, unique=True)
     title = Column(String(30), nullable=False)
+    is_root = Column(Boolean(create_constraint=False), default=False)
     organizations = relationship('Organization', back_populates='type',
                                  cascade='all, delete')
 
@@ -167,7 +168,7 @@ class Organization(Party, CoordinatesMixin):
     description = Column(String(255))
     date_established = Column(Date)
     website_url = Column(String(150))
-    type_id = Column(types.UUID, ForeignKey("organization_types.uuid"))
+    type_id = Column(types.UUID, ForeignKey("organization_types.uuid"), nullable=False)
     type = relationship("OrganizationType", back_populates="organizations")
     children = relationship("Organization", foreign_keys=[parent_id],
                             backref=backref("parent", remote_side=[uuid]))
