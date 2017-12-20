@@ -2,6 +2,7 @@ import sys
 from datetime import date, datetime
 from elixr.base import AttrDict
 from ..address import Country, State
+from ..logic import action
 from ..party import (
     PartyType, EmailContact, PhoneContact, Organization, OrganizationType
 )
@@ -616,23 +617,23 @@ class OrganizationTypeImporter(ImporterBase):
 
     def create_organization_type(self, row, data):
         try:
-            org_type = OrganizationType(**data)
-            self.context.db.add(org_type)
+            action.organization_type_create(self.context.db, data)
         except Exception as ex:
             message_fmt = 'OrganizationType could not be created. Err: %s'
             self.error(row, 0, message_fmt % str(ex))
 
     def process(self):
-        sh, nrows = (self.sheet, self.sheet.max_row)
+        sh, nrows, num_errors = (self.sheet, self.sheet.max_row, 0)
         for row in range(2, nrows + 1):
-            num_errors = len(self.errors)
-
             data = AttrDict()
             data['name'] = self.get_required_id_from_cell(sh, row, 1)
             data['title'] = self.get_required_text_from_cell(sh, row, 2)
+            data['is_root'] = self.get_bool_from_cell(sh, row, 3)
             if num_errors <= len(self.errors):
                 self.create_organization_type(row, data)
                 self.progress(row, nrows)
+
+            num_errors = len(self.errors)
             row += 1
         self.progress(row, nrows)
 
@@ -674,8 +675,17 @@ class OrganizationImporter(PartyImporterBase):
             ('addr_state_id', 'code', State),
             ('parent_id', 'short_name', Organization),
             ('type_id', 'name', OrganizationType))
+
+        # convert ids to string as op expects them so
+        for field in ('addr_state_id', 'parent_id', 'type_id'):
+            value = data[field]
+            if value is not None:
+                data[field] = str(value)
+
         try:
-            item = Organization(**data)
+            op_context = {'dbsession': self.context.db}
+            op_context['allow_multiroot'] = self.context.get('allow_multiroot', True)
+            item = action.organization_create(op_context, data)
             if contacts:
                 item.contacts.extend(contacts)
             return item

@@ -92,7 +92,7 @@ def cache2():
         ])
 
         from elixr.sax.party import OrganizationType
-        ot1 = OrganizationType(name='hq', title='Headquarters')
+        ot1 = OrganizationType(name='hq', title='Headquarters', is_root=True)
         ot2 = OrganizationType(name='branch', title='Branch')
         session.add_all([ot1, ot2])
         session.commit()

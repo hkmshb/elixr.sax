@@ -371,7 +371,6 @@ class TestAdminBoundaryImporter(object):
         assert found == 1
         found2 = db.query(Country).all()
         countries = db.query(Country).all()
-        print([c.name for c in found2])
         assert len(found2) == 2
 
     def test_countries_after_states_listing_not_processed2(self, imp_adb):
@@ -396,14 +395,31 @@ class TestOrganizationTypeImporter(object):
         from conftest import wb
 
         db = cache._XRefResolver__dbsession
-        utils.clear_tables(db, 'organisation_types')
+        utils.clear_tables(db, 'organization_types')
 
         context = AttrDict(db=db, cache=cache)
         importer = OrganizationTypeImporter(context)
         importer.import_data(wb())
         assert len(importer.errors) == 0
         found = db.query(OrganizationType).count()
+        assert found == 3
+
+    def test_organization_type_fails_with_multi_isroot_non_multiroot(self, cache):
+        from conftest import wb
+        OrganizationTypeImporter.sheet_name = 'organization-types-2'
+
+        db = cache._XRefResolver__dbsession
+        utils.clear_tables(db, 'organization_types')
+
+        context = AttrDict(db=db, cache=cache)
+        importer = OrganizationTypeImporter(context)
+        importer.import_data(wb())
+        assert len(importer.errors) == 1
+        found = db.query(OrganizationType).count()
         assert found == 2
+
+        # restore orig sheet name
+        OrganizationTypeImporter.sheet_name = 'organization-types'
 
 
 class TestOrganizationImporter(object):
@@ -413,7 +429,7 @@ class TestOrganizationImporter(object):
         from conftest import wb
 
         db = cache2._XRefResolver__dbsession
-        utils.clear_tables(db, 'contact_details', 'organisations')
+        utils.clear_tables(db, 'contact_details', 'organizations')
 
         context = AttrDict(db=db, cache=cache2)
         importer = OrganizationImporter(context)

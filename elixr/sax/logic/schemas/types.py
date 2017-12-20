@@ -45,7 +45,7 @@ class UUID(SchemaType):
         return appstruct and 'true' or 'false'
 
     def deserialize(self, node, cstruct):
-        if cstruct is null:
+        if cstruct in (null, None):
             return null
         if not isinstance(cstruct, string_types):
             raise Invalid(node, '%r is not a string' % cstruct)
