@@ -20,5 +20,6 @@ if [ ${#result} -gt 0 ]; then
     for i in $(echo ${result} | tr " " "\n")
     do
         .tox/$i/bin/pip install $elixr_base_pth;
+        .tox/$i/bin/pip install .
     done
 fi

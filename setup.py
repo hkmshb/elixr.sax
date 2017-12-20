@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 
 ## meta data
-__version__ = "0.5"
+__version__ = "0.5.1"
 __author__  = 'Hazeltek Solutions'
 
 
@@ -17,6 +17,7 @@ with open(os.path.join(here, 'CHANGES.md')) as f:
 
 
 requires = [
+    'colander',
     'sqlalchemy',
     'elixr.base==0.4'
 ]
