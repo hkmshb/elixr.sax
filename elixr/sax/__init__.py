@@ -18,5 +18,7 @@ from .mixins import (
     IdsMixin,
     UUIDMixin,
     IdTimestampMixin,
-    TimestampMixin
+    TimestampMixin,
+    EntityMixin,
+    EntityWithDeletedMixin
 )
